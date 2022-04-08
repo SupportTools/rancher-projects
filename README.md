@@ -29,14 +29,22 @@ bash run.sh \
 ```
 
 ## Options
-`--rancher-server` sets the Rancher Server. Note: This should include `https://` 
+`--rancher-server` sets the Rancher Server. Note: This should include `https://`
+
 `--rancher-access-key` sets the Rancher Access Key. Note: This account should have permissions to list clusters, get/list/create/update projects and namespace.
+
 `--rancher-secret-key` sets the Rancher Secret Key.
+
 `--cluster-name` sets the cluster name in which the project will be created.
+
 `--project-name` sets the project name to be created and/or assigned.
+
 `--namespace` sets the namespace name to be created and/or assigned.
+
 `--create-project` sets whether to create the project. (Optional) If project does not exist, it will be created.
+
 `--create-namespace` sets whether to create the namespace. (Optional) If namespace does not exist, it will be created.
+
 `--help` prints this help message.
 
 ## Examples
