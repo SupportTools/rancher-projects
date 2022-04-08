@@ -1,6 +1,5 @@
 # rancher-projects
-A tool for managing and looking up Rancher projects for use in automation.
-
+The goal of this project is to provide a tool for creating projects and namespaces in Rancher then assigns a namespace to a project.
 
 ## Installation
 ```bash
@@ -15,7 +14,6 @@ wget -O rancher-projects https://raw.githubusercontent.com/SupportTools/rancher-
 chmod +x rancher-projects
 sudo mv rancher-projects /usr/local/bin/
 ```
-
 
 ## Usage
 ```bash
