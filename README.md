@@ -31,16 +31,26 @@ bash run.sh \
 ```
 
 ## Options
-`--rancher-server` sets the Rancher Server. Note: This should include `https://` 
+`--rancher-server` sets the Rancher Server. Note: This should include `https://`
+
 `--rancher-access-key` sets the Rancher Access Key. Note: This account should have permissions to list clusters, get/list/create/update projects and namespace.
+
 `--rancher-secret-key` sets the Rancher Secret Key.
+
 `--cluster-name` sets the cluster name in which the project will be created.
+
 `--project-name` sets the project name to be created and/or assigned.
+
 `--namespace` sets the namespace name to be created and/or assigned.
+
 `--create-project` sets whether to create the project. (Optional) If project does not exist, it will be created.
+
 `--create-namespace` sets whether to create the namespace. (Optional) If namespace does not exist, it will be created.
+
 `--create-kubeconfig` sets whether to create a kubeconfig file. (Optional) If kubeconfig file does not exist, it will be created.
+
 `--kubeconfig` sets the path to the kubeconfig file. (Optional) Default is rancher-projects-kubeconfig.
+
 `--help` prints this help message.
 
 ## Examples
@@ -66,6 +76,10 @@ Project long: c-m-9ldt7ts5:p-bn9h5
 Project short: p-bn9h5
 Updating namespace...
 Successfully assigned namespace monitoring to project ClusterServices
+<<<<<<< HEAD
 Generating kubeconfig...
 Kubeconfig: rancher-projects-kubeconfig
 ```
+=======
+```
+>>>>>>> abee306684c0bb7e5347d4f9a06619da94695bd3
