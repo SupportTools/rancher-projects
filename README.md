@@ -25,7 +25,9 @@ bash run.sh \
 --project-name "MyProject" \
 --namespace "mynamespace"  \
 --create-project true \
---create-namespace true
+--create-namespace true \
+--create-kubeconfig true \
+--kubeconfig "rancher-projects-kubeconfig"
 ```
 
 ## Options
@@ -37,6 +39,8 @@ bash run.sh \
 `--namespace` sets the namespace name to be created and/or assigned.
 `--create-project` sets whether to create the project. (Optional) If project does not exist, it will be created.
 `--create-namespace` sets whether to create the namespace. (Optional) If namespace does not exist, it will be created.
+`--create-kubeconfig` sets whether to create a kubeconfig file. (Optional) If kubeconfig file does not exist, it will be created.
+`--kubeconfig` sets the path to the kubeconfig file. (Optional) Default is rancher-projects-kubeconfig.
 `--help` prints this help message.
 
 ## Examples
@@ -62,4 +66,6 @@ Project long: c-m-9ldt7ts5:p-bn9h5
 Project short: p-bn9h5
 Updating namespace...
 Successfully assigned namespace monitoring to project ClusterServices
+Generating kubeconfig...
+Kubeconfig: rancher-projects-kubeconfig
 ```

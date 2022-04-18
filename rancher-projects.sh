@@ -2,18 +2,22 @@
 
 usage() {
     echo "Usage: $0"
-    echo "  --cluster-name          Cluster name                                 Example: rke2-dev"
-    echo "  --project-name          Project name                                 Example: MyProject"
-    echo "  --create-project        Creates project if it doesn't exist"
-    echo "  --namespace             Namespace)                                   Example: my-namespace"
-    echo "  --create-namespace      Creates namespace if it doesn't exist"
-    echo "  --rancher-server        Rancher server                               Example: https://rancher.dev.local"
-    echo "  --rancher-access-key    Rancher Access Key                           Example: token-abcdef" 
-    echo "  --rancher-secret-key    Rancher Secret Key                           Example: abcdefghijklmnopqrstuvwxyz"
+    echo "  --cluster-name              Cluster name                                 Example: rke2-dev"
+    echo "  --project-name              Project name                                 Example: MyProject"
+    echo "  --create-project            Creates project if it doesn't exist"
+    echo "  --namespace                 Namespace)                                   Example: my-namespace"
+    echo "  --create-namespace          Creates namespace if it doesn't exist"
+    echo "  --rancher-server            Rancher server                               Example: https://rancher.dev.local"
+    echo "  --rancher-access-key        Rancher Access Key                           Example: token-abcdef" 
+    echo "  --rancher-secret-key        Rancher Secret Key                           Example: abcdefghijklmnopqrstuvwxyz"
+    echo "  --create-kubeconfig         Generates kubeconfig file for the cluster"
+    echo "  --kubeconfig                Overrides the kubeconfig file name           Default: rancher-projects-kubeconfig"
     exit 1; }
 
 CREATE_PROJECT="false"
 CREATE_NAMESPACE="false"
+CREATE_KUBECONFIG="false"
+KUBECONFIG_FILE="rancher-projects-kubeconfig"
 
 POSITIONAL_ARGS=()
 
@@ -56,6 +60,16 @@ case $1 in
     ;;
     -S|--rancher-secret-key)
     CATTLE_SECRET_KEY="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --create-kubeconfig)
+    CREATE_KUBECONFIG="true"
+    shift # past argument
+    shift # past value
+    ;;
+    --kubeconfig)
+    KUBECONFIG="$2"
     shift # past argument
     shift # past value
     ;;
@@ -186,7 +200,6 @@ create-namespace() {
     fi
 }
 
-
 get-cluster-id() {
     echo "Getting cluster id..."
     CLUSTER_ID=$(curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id')
@@ -235,6 +248,12 @@ verify-project-assignment() {
     echo "Successfully verified project assignment"
 }
 
+generate-kubeconfig() {
+    echo "Generating kubeconfig..."
+    echo "Kubeconfig: ${KUBECONFIG}"
+    curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters/${CLUSTER_ID}?action=generateKubeconfig" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.config' > ${KUBECONFIG}
+}
+
 verify-tools
 verify-settings
 verify-access
@@ -252,3 +271,6 @@ else
     verify-namespace
 fi
 assign-namespace-to-project
+if [ "${CREATE_KUBECONFIG}" == "true" ]; then
+    generate-kubeconfig
+fi
