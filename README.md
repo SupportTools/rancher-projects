@@ -76,10 +76,6 @@ Project long: c-m-9ldt7ts5:p-bn9h5
 Project short: p-bn9h5
 Updating namespace...
 Successfully assigned namespace monitoring to project ClusterServices
-<<<<<<< HEAD
 Generating kubeconfig...
 Kubeconfig: rancher-projects-kubeconfig
 ```
-=======
-```
->>>>>>> abee306684c0bb7e5347d4f9a06619da94695bd3
