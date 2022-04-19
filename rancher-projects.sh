@@ -161,7 +161,7 @@ verify-project() {
 
 create-project() {
     echo "Checking if project ${PROJECT_NAME} exists..."
-    PROJECT_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]'`
+    PROJECT_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]'`
     if [[ "${PROJECT_DATA}" == "null" ]]; then
         echo "Creating project ${PROJECT_NAME}..."
         curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "{\"type\":\"project\", \"name\":\"${PROJECT_NAME}\", \"clusterId\":\"${CLUSTER_ID}\"}" > /dev/null
@@ -213,7 +213,7 @@ get-cluster-id() {
 
 get-project-info() {
     echo "Getting project info..."
-    PROJECT_ID=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id'`
+    PROJECT_ID=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id'`
     if [ $? -ne 0 ]; then
         echo "Failed to get project info"
         exit 2
@@ -240,7 +240,7 @@ assign-namespace-to-project() {
 
 verify-project-assignment() {
     echo "Verifying project assignment..."
-    NAMESPACE_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations."field.cattle.io/projectId" | tr -d '"'`
+    NAMESPACE_DATA=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations | grep "field.cattle.io/projectId" | awk '{print $2}' | tr -d '", '`
     if [[ "${NAMESPACE_DATA}" != "${PROJECT_ID}" ]]; then
         echo "Failed to verify project assignment"
         exit 2
@@ -261,9 +261,8 @@ verify-cluster
 get-cluster-id
 if [ "${CREATE_PROJECT}" == "true" ]; then
     create-project
-else
-    verify-project
 fi
+verify-project
 get-project-info
 if [ "${CREATE_NAMESPACE}" == "true" ]; then
     create-namespace
