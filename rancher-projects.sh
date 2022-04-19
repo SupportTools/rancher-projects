@@ -271,6 +271,7 @@ else
     verify-namespace
 fi
 assign-namespace-to-project
+verify-project-assignment
 if [ "${CREATE_KUBECONFIG}" == "true" ]; then
     generate-kubeconfig
 fi
