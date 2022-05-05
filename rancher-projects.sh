@@ -11,7 +11,9 @@ usage() {
     echo "  --rancher-access-key        Rancher Access Key                           Example: token-abcdef" 
     echo "  --rancher-secret-key        Rancher Secret Key                           Example: abcdefghijklmnopqrstuvwxyz"
     echo "  --create-kubeconfig         Generates kubeconfig file for the cluster"
+    echo "  --get-clusters-by-type      Returns a list of clusters by type           Example: rke2"
     echo "  --kubeconfig                Overrides the kubeconfig file name           Default: rancher-projects-kubeconfig"
+    echo "  --kubeconfig-dir            Overrides the kubeconfig file directory      Default: Current directory"
     exit 1; }
 
 CREATE_PROJECT="false"
@@ -68,8 +70,18 @@ case $1 in
     shift # past argument
     shift # past value
     ;;
+    --get-clusters-by-type)
+    CLUSTER_TYPE="$2"
+    shift # past argument
+    shift # past value
+    ;;
     --kubeconfig)
     KUBECONFIG="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --kubeconfig-dir)
+    KUBECONFIG_DIR="$2"
     shift # past argument
     shift # past value
     ;;
@@ -108,14 +120,30 @@ verify-tools() {
 }
 
 verify-settings() {
-    if [[ -z $CLUSTER_NAME ]] || [[ -z $PROJECT_NAME ]] || [[ -z $NAMESPACE ]] || [[ -z $CATTLE_SERVER ]] || [[ -z $CATTLE_ACCESS_KEY ]] || [[ -z $CATTLE_SECRET_KEY ]]; then
-        usage
-        exit 1
+    echo "Verifying settings..."
+    if [ -z "${KUBECONFIG_DIR}" ]; then
+        KUBECONFIG_DIR="$(pwd)"
+    else
+        mkdir -p "${KUBECONFIG_DIR}"
+        if [ ! -d "${KUBECONFIG_DIR}" ]; then
+            echo "Kubeconfig directory does not exist. Please create it and try again."
+            exit 1
+        fi
     fi
-
+    if [[ -z ${CLUSTER_TYPE} ]]; then
+        if [[ -z $CLUSTER_NAME ]] || [[ -z $PROJECT_NAME ]] || [[ -z $NAMESPACE ]] || [[ -z $CATTLE_SERVER ]] || [[ -z $CATTLE_ACCESS_KEY ]] || [[ -z $CATTLE_SECRET_KEY ]]; then
+            usage
+            exit 1
+        fi
+    else
+        if [[ -z $CATTLE_SERVER ]] || [[ -z $CATTLE_ACCESS_KEY ]] || [[ -z $CATTLE_SECRET_KEY ]]; then
+            usage
+            exit 1
+        fi
+    fi
     if [ "${DEBUG}" == "true" ]; then
-    set -x
-    echo "Dumping options"
+        set -x
+        echo "Dumping options"
         echo "CLUSTER_NAME: ${CLUSTER_NAME}"
         echo "PROJECT_NAME: ${PROJECT_NAME}"
         echo "CREATE_PROJECT: ${CREATE_PROJECT}"
@@ -124,6 +152,10 @@ verify-settings() {
         echo "CATTLE_SERVER: ${CATTLE_SERVER}"
         echo "CATTLE_ACCESS_KEY: ${CATTLE_ACCESS_KEY}"
         echo "CATTLE_SECRET_KEY: ${CATTLE_SECRET_KEY}"
+        echo "CREATE_KUBECONFIG: ${CREATE_KUBECONFIG}"
+        echo "CLUSTER_TYPE: ${CLUSTER_TYPE}"
+        echo "KUBECONFIG: ${KUBECONFIG}"
+        echo "KUBECONFIG_DIR: ${KUBECONFIG_DIR}"
         echo "DEBUG: ${DEBUG}"
     fi
 
@@ -131,7 +163,7 @@ verify-settings() {
 
 verify-access() {
     echo "Verifying access to Rancher server..."
-    curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" > /dev/null
+    curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -o /dev/null
     if [ $? -ne 0 ]; then
         echo "Failed to authenticate to ${CATTLE_SERVER}"
         exit 2
@@ -200,6 +232,17 @@ create-namespace() {
     fi
 }
 
+get-all-cluster-ids() {
+    echo "Getting all cluster ids..."
+    echo "CLUSTER_TYPE: ${CLUSTER_TYPE}"
+    CLUSTER_IDS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?driver=${CLUSTER_TYPE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[] | .name + ":" + .id')
+    if [ $? -ne 0 ]; then
+        echo "Failed to get cluster id"
+        exit 2
+    fi
+    echo "Successfully got cluster ids"
+}
+
 get-cluster-id() {
     echo "Getting cluster id..."
     CLUSTER_ID=$(curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id')
@@ -250,27 +293,43 @@ verify-project-assignment() {
 
 generate-kubeconfig() {
     echo "Generating kubeconfig..."
-    echo "Kubeconfig: ${KUBECONFIG}"
-    curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters/${CLUSTER_ID}?action=generateKubeconfig" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.config' > ${KUBECONFIG}
+    if [[ -z "${KUBECONFIG}" ]]; then
+        KUBECONFIG_FILE=$1
+        CLUSTER_ID=$2
+    else
+        KUBECONFIG_FILE=${KUBECONFIG}
+    fi
+    echo "Kubeconfig file: ${KUBECONFIG_FILE}"
+    echo "Cluster id: ${CLUSTER_ID}"
+    curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters/${CLUSTER_ID}?action=generateKubeconfig" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.config' > ${KUBECONFIG_DIR}/${KUBECONFIG_FILE}
 }
 
 verify-tools
 verify-settings
 verify-access
-verify-cluster
-get-cluster-id
-if [ "${CREATE_PROJECT}" == "true" ]; then
-    create-project
-fi
-verify-project
-get-project-info
-if [ "${CREATE_NAMESPACE}" == "true" ]; then
-    create-namespace
+if [ -z ${CLUSTER_TYPE} ]; then
+    verify-cluster
+    get-cluster-id
+    if [ "${CREATE_PROJECT}" == "true" ]; then
+        create-project
+    fi
+    verify-project
+    get-project-info
+    if [ "${CREATE_NAMESPACE}" == "true" ]; then
+        create-namespace
+    else
+        verify-namespace
+    fi
+    assign-namespace-to-project
+    verify-project-assignment
+    if [ "${CREATE_KUBECONFIG}" == "true" ]; then
+        generate-kubeconfig
+    fi
 else
-    verify-namespace
-fi
-assign-namespace-to-project
-verify-project-assignment
-if [ "${CREATE_KUBECONFIG}" == "true" ]; then
-    generate-kubeconfig
+    get-all-cluster-ids
+    for CLUSTER_ID in ${CLUSTER_IDS}; do
+        cluster_name=`echo ${CLUSTER_ID} | awk -F ':' '{print $1}'`
+        cluster_id=`echo ${CLUSTER_ID} | awk -F ':' '{print $2}'`
+        generate-kubeconfig ${cluster_name} ${cluster_id}
+    done
 fi
