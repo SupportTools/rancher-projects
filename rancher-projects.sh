@@ -14,6 +14,7 @@ usage() {
     echo "  --get-clusters-by-type      Returns a list of clusters by type           Example: rke2"
     echo "  --kubeconfig                Overrides the kubeconfig file name           Default: rancher-projects-kubeconfig"
     echo "  --kubeconfig-dir            Overrides the kubeconfig file directory      Default: Current directory"
+    echo "  --kubeconfig-prefix         Overrides the kubeconfig file prefix         Default: <blank>"
     exit 1; }
 
 CREATE_PROJECT="false"
@@ -82,6 +83,11 @@ case $1 in
     ;;
     --kubeconfig-dir)
     KUBECONFIG_DIR="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    --kubeconfig-prexfix)
+    KUBECONFIG_PREFIX="$2"
     shift # past argument
     shift # past value
     ;;
@@ -156,6 +162,7 @@ verify-settings() {
         echo "CLUSTER_TYPE: ${CLUSTER_TYPE}"
         echo "KUBECONFIG: ${KUBECONFIG}"
         echo "KUBECONFIG_DIR: ${KUBECONFIG_DIR}"
+        echo "KUBECONFIG_PREFIX: ${KUBECONFIG_PREFIX}"
         echo "DEBUG: ${DEBUG}"
     fi
 
@@ -298,6 +305,10 @@ generate-kubeconfig() {
         CLUSTER_ID=$2
     else
         KUBECONFIG_FILE=${KUBECONFIG}
+    fi
+    if [[ ! -z ${KUBECONFIG_PREFIX} ]]
+    then
+        KUBECONFIG_FILE="${KUBECONFIG_PREFIX}-${KUBECONFIG_FILE}"
     fi
     echo "Kubeconfig file: ${KUBECONFIG_FILE}"
     echo "Cluster id: ${CLUSTER_ID}"
