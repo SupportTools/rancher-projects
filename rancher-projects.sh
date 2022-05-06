@@ -127,13 +127,15 @@ verify-tools() {
 
 verify-settings() {
     echo "Verifying settings..."
-    if [ -z "${KUBECONFIG_DIR}" ]; then
-        KUBECONFIG_DIR="$(pwd)"
-    else
-        mkdir -p "${KUBECONFIG_DIR}"
-        if [ ! -d "${KUBECONFIG_DIR}" ]; then
-            echo "Kubeconfig directory does not exist. Please create it and try again."
-            exit 1
+    if [ -z "${KUBECONFIG}"]; then
+        if [ -z "${KUBECONFIG_DIR}" ]; then
+            KUBECONFIG_DIR="$(pwd)"
+        else
+            mkdir -p "${KUBECONFIG_DIR}"
+            if [ ! -d "${KUBECONFIG_DIR}" ]; then
+                echo "Kubeconfig directory does not exist. Please create it and try again."
+                exit 1
+            fi
         fi
     fi
     if [[ -z ${CLUSTER_TYPE} ]]; then
