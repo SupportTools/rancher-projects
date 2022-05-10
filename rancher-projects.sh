@@ -172,8 +172,8 @@ verify-settings() {
 
 verify-access() {
     echo "Verifying access to Rancher server..."
-    curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" > /dev/null
-    if [ $? -ne 0 ]; then
+    output=`curl -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}" "${CATTLE_SERVER}/v3/" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}"`
+    if [ $output -ne 200 ]; then
         echo "Failed to authenticate to ${CATTLE_SERVER}"
         exit 2
     fi
