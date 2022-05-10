@@ -182,8 +182,8 @@ verify-access() {
 
 verify-cluster() {
     echo "Verifying cluster ${CLUSTER_NAME}..."
-    curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" > /dev/null
-    if [ $? -ne 0 ]; then
+    output=`curl -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}"  -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}"
+    if [ $output -ne 200 ]; then
         echo "Failed to find cluster ${CLUSTER_NAME}"
         exit 2
     fi
