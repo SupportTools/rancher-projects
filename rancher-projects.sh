@@ -127,7 +127,7 @@ verify-tools() {
 
 verify-settings() {
     echo "Verifying settings..."
-    if [ -z "${KUBECONFIG}"]; then
+    if [ -z "${KUBECONFIG}" ]; then
         if [ -z "${KUBECONFIG_DIR}" ]; then
             KUBECONFIG_DIR="$(pwd)"
         else
