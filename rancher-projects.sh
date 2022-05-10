@@ -128,9 +128,12 @@ verify-tools() {
 verify-settings() {
     echo "Verifying settings..."
     if [ -z "${KUBECONFIG}" ]; then
+        if [ "${DEBUG}" == "true" ]; then echo "Using Kubeconfig DIR"; fi
         if [ -z "${KUBECONFIG_DIR}" ]; then
             KUBECONFIG_DIR="$(pwd)"
+            if [ "${DEBUG}" == "true" ]; then echo "Defaulting to pwd"; fi
         else
+            if [ "${DEBUG}" == "true" ]; then echo "Making  Kubeconfig DIR"; fi
             mkdir -p "${KUBECONFIG_DIR}"
             if [ ! -d "${KUBECONFIG_DIR}" ]; then
                 echo "Kubeconfig directory does not exist. Please create it and try again."
@@ -139,12 +142,16 @@ verify-settings() {
         fi
     fi
     if [[ -z ${CLUSTER_TYPE} ]]; then
+        if [ "${DEBUG}" == "true" ]; then echo "Checking in single cluster mode"; fi
         if [[ -z $CLUSTER_NAME ]] || [[ -z $PROJECT_NAME ]] || [[ -z $NAMESPACE ]] || [[ -z $CATTLE_SERVER ]] || [[ -z $CATTLE_ACCESS_KEY ]] || [[ -z $CATTLE_SECRET_KEY ]]; then
+            if [ "${DEBUG}" == "true" ]; then echo "Failed in single cluster mode"; fi
             usage
             exit 1
         fi
     else
+        if [ "${DEBUG}" == "true" ]; then echo "Checking in cluster type mode"; fi
         if [[ -z $CATTLE_SERVER ]] || [[ -z $CATTLE_ACCESS_KEY ]] || [[ -z $CATTLE_SECRET_KEY ]]; then
+            if [ "${DEBUG}" == "true" ]; then echo "Failed in cluster type mode"; fi
             usage
             exit 1
         fi
