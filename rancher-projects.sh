@@ -113,6 +113,12 @@ esac
 done
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
+if [ "${DEBUG}" == "true" ];
+then
+    echo "Enabling debug logging"
+    set -x
+fi
+
 verify-tools() {
     echo "Verifying tools..."
     if ! command -v jq >/dev/null 2>&1; then
@@ -189,7 +195,7 @@ verify-access() {
 
 verify-cluster() {
     echo "Verifying cluster ${CLUSTER_NAME}..."
-    output=`curl -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}"  -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}"
+    output=`curl -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}"  -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}"`
     if [ $output -ne 200 ]; then
         echo "Failed to find cluster ${CLUSTER_NAME}"
         exit 2
