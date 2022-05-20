@@ -51,6 +51,10 @@ bash run.sh \
 
 `--kubeconfig` sets the path to the kubeconfig file. (Optional) Default is rancher-projects-kubeconfig.
 
+`--get-clusters-by-type` sets whether to filter the cluster list by type. (Optional) Example: rke, rke2, k3s, eks
+
+`--get-clusters-by-label` sets whether to filter the cluster list by labels. (Optional) Example: rke2-upgrade=true,maintenance=true
+
 `--help` prints this help message.
 
 ## Examples
