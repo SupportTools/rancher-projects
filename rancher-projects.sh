@@ -237,7 +237,7 @@ create-project() {
 verify-namespace() {
     echo "Verifying namespace ${NAMESPACE}..."
     NAMESPACE_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .code | tr -d '"'`
-    if [[ "${NAMESPACE_DATA}" == "NotFound" ]]; then
+    if [[ "${NAMESPACE_DATA}" == "Notfound" ]]; then
         echo "Failed to find namespace ${NAMESPACE}"
         exit 2
     fi
@@ -247,7 +247,7 @@ verify-namespace() {
 create-namespace() {
     echo "Checking if namespace ${NAMESPACE} exists..."
     NAMESPACE_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .code | tr -d '"'`
-    if [[ "${NAMESPACE_DATA}" == "NotFound" ]]; then
+    if [[ "${NAMESPACE_DATA}" == "Notfound" ]]; then
         echo "Creating namespace ${NAMESPACE}..."
         curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "{\"type\":\"namespace\", \"metadata\": {\"name\":\"${NAMESPACE}\"}}" > /dev/null
         verify-namespace
@@ -298,7 +298,10 @@ filter-by-cluster-label() {
     if curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${cluster_name}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r .data[0].labels | grep "${LABEL}" > /dev/null
     then
         echo "Label match found"
-        FOUND=1
+        found=1
+        labelcount=$((labelcount+1))
+    else
+        echo "Label not found"
     fi
 }
 
@@ -379,26 +382,39 @@ if [ -z ${CLUSTER_TYPE} ]; then
     fi
 else
     get-all-cluster-ids
+    keypairs=`echo ${CLUSTER_LABELS} | sed -e 's/,/\n/g'`
+    keypaircount=`echo ${CLUSTER_LABELS} | sed -e 's/,/\n/g' | wc -l`
     for CLUSTER_ID in ${CLUSTER_IDS}; do
         cluster_name=`echo ${CLUSTER_ID} | awk -F ':' '{print $1}'`
         cluster_id=`echo ${CLUSTER_ID} | awk -F ':' '{print $2}'`
         if [[ ! -z ${CLUSTER_LABELS} ]]
         then
-            FOUND=0
-            for keypair in `echo ${CLUSTER_LABELS} | sed -e 's/,/\n/g'`
+            found=0
+            foundall=0
+            labelcount=0
+            for keypair in ${keypairs}
             do
                 echo "Checking label ${keypair}"
                 filter-by-cluster-label ${cluster_name} ${keypair}
             done
+            if [[ ${labelcount} == ${keypaircount} ]]
+            then
+              echo "found all labels"
+              foundall=1
+            else
+              echo "Label count mismatch"
+              foundall=0
+            fi
         else
-            FOUND=1
+            found=1
         fi
-        if [ $FOUND == "1" ]
+        if [ ${found} == "1" ] && [ ${foundall} == "1" ]
         then
             echo "Matching label or no label set"
             generate-kubeconfig ${cluster_name} ${cluster_id}
         else
             echo "Skilling cluster due to missing label"
         fi
+        echo "##################################################################################"
     done
 fi
