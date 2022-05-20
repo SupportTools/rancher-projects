@@ -76,6 +76,11 @@ case $1 in
     shift # past argument
     shift # past value
     ;;
+    --get-clusters-by-label)
+    CLUSTER_LABELS="$2"
+    shift # past argument
+    shift # past value
+    ;;
     --kubeconfig)
     KUBECONFIG="$2"
     shift # past argument
@@ -263,6 +268,11 @@ get-all-cluster-ids() {
         exit 2
     fi
     echo "Successfully got cluster ids"
+    if [[ ! -z $CLUSTER_LABELS ]]
+    then
+      echo "Filtering by cluster label(s)"
+
+    fi
 }
 
 get-cluster-id() {
@@ -274,6 +284,22 @@ get-cluster-id() {
     fi
     echo "Cluster id: ${CLUSTER_ID}"
     echo "Successfully got cluster id"
+}
+
+filter-by-cluster-label() {
+    cluster_name=$1
+    keypair=$2
+    echo "Filtering by cluster label"
+    echo "Clustername: ${cluster_name}"
+    echo "Label: ${keypair}"
+    key=`echo ${keypair} | awk -F '=' '{print $1}'`
+    value=`echo ${keypair} | awk -F '=' '{print $2}'`
+    LABEL=`echo "\"$key\": \"${value}\""`
+    if curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${cluster_name}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r .data[0].labels | grep "${LABEL}" > /dev/null
+    then
+        echo "Label match found"
+        FOUND=1
+    fi
 }
 
 get-project-info() {
@@ -356,6 +382,23 @@ else
     for CLUSTER_ID in ${CLUSTER_IDS}; do
         cluster_name=`echo ${CLUSTER_ID} | awk -F ':' '{print $1}'`
         cluster_id=`echo ${CLUSTER_ID} | awk -F ':' '{print $2}'`
-        generate-kubeconfig ${cluster_name} ${cluster_id}
+        if [[ ! -z ${CLUSTER_LABELS} ]]
+        then
+            FOUND=0
+            for keypair in `echo ${CLUSTER_LABELS} | sed -e 's/,/\n/g'`
+            do
+                echo "Checking label ${keypair}"
+                filter-by-cluster-label ${cluster_name} ${keypair}
+            done
+        else
+            FOUND=1
+        fi
+        if [ $FOUND == "1" ]
+        then
+            echo "Matching label or no label set"
+            generate-kubeconfig ${cluster_name} ${cluster_id}
+        else
+            echo "Skilling cluster due to missing label"
+        fi
     done
 fi
