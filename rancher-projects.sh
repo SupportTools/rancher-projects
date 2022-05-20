@@ -413,7 +413,7 @@ else
             echo "Matching label or no label set"
             generate-kubeconfig ${cluster_name} ${cluster_id}
         else
-            echo "Skilling cluster due to missing label"
+            echo "Skipping cluster due to missing label"
         fi
         echo "##################################################################################"
     done
