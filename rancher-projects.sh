@@ -365,19 +365,19 @@ verify-access
 if [ -z ${CLUSTER_TYPE} ]; then
     verify-cluster
     get-cluster-id
-    if [ "${CREATE_PROJECT}" == "true" ]; then
+    if [ "$CREATE_PROJECT" == "true" ]; then
         create-project
     fi
     verify-project
     get-project-info
-    if [ "${CREATE_NAMESPACE}" == "true" ]; then
+    if [ "$CREATE_NAMESPACE" == "true" ]; then
         create-namespace
     else
         verify-namespace
     fi
     assign-namespace-to-project
     verify-project-assignment
-    if [ "${CREATE_KUBECONFIG}" == "true" ]; then
+    if [ "$CREATE_KUBECONFIG" == "true" ]; then
         generate-kubeconfig
     fi
 else
@@ -387,7 +387,7 @@ else
     for CLUSTER_ID in ${CLUSTER_IDS}; do
         cluster_name=`echo ${CLUSTER_ID} | awk -F ':' '{print $1}'`
         cluster_id=`echo ${CLUSTER_ID} | awk -F ':' '{print $2}'`
-        if [[ ! -z ${CLUSTER_LABELS} ]]
+        if [ ! -z ${CLUSTER_LABELS} ]
         then
             found=0
             foundall=0
@@ -397,7 +397,7 @@ else
                 echo "Checking label ${keypair}"
                 filter-by-cluster-label ${cluster_name} ${keypair}
             done
-            if [[ ${labelcount} == ${keypaircount} ]]
+            if [ "$labelcount" == "$keypaircount" ]
             then
               echo "found all labels"
               foundall=1
@@ -408,7 +408,7 @@ else
         else
             found=1
         fi
-        if [ ${found} == "1" ] && [ ${foundall} == "1" ]
+        if [ "$found" == "1" ] && [ "$foundall" == "1" ]
         then
             echo "Matching label or no label set"
             generate-kubeconfig ${cluster_name} ${cluster_id}
