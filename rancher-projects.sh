@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#set -x
+
 usage() {
     echo "Usage: $0"
     echo "  --cluster-name              Cluster name                                 Example: rke2-dev"
@@ -344,13 +346,13 @@ verify-project-assignment() {
 
 generate-kubeconfig() {
     echo "Generating kubeconfig..."
-    if [[ -z "${KUBECONFIG}" ]]; then
+    if [ -z "$KUBECONFIG" ]; then
         KUBECONFIG_FILE=$1
         CLUSTER_ID=$2
     else
         KUBECONFIG_FILE=${KUBECONFIG}
     fi
-    if [[ ! -z ${KUBECONFIG_PREFIX} ]]
+    if [ ! -z "$KUBECONFIG_PREFIX" ]
     then
         KUBECONFIG_FILE="${KUBECONFIG_PREFIX}-${KUBECONFIG_FILE}"
     fi
@@ -408,7 +410,7 @@ else
         else
             found=1
         fi
-        if [ "$found" == "1" ] && [ "$foundall" == "1" ]
+        if [ "$found" == "1" ] || [ "$foundall" == "1" ]
         then
             echo "Matching label or no label set"
             generate-kubeconfig ${cluster_name} ${cluster_id}
