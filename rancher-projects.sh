@@ -336,8 +336,8 @@ assign-namespace-to-project() {
 
 verify-project-assignment() {
     echo "Verifying project assignment..."
-    NAMESPACE_DATA=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations | grep "field.cattle.io/projectId" | awk '{print $2}' | tr -d '", '`
-    if [[ "${NAMESPACE_DATA}" != "${PROJECT_ID}" ]]; then
+    curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations | grep "field.cattle.io/projectId" | awk '{print $2}' | tr -d '", ' | grep ${PROJECT_ID} > /dev/null
+    if [ $? -ne 0 ]; then
         echo "Failed to verify project assignment"
         exit 2
     fi
