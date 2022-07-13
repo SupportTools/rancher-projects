@@ -249,7 +249,7 @@ verify-namespace() {
 create-namespace() {
     echo "Checking if namespace ${NAMESPACE} exists..."
     NAMESPACE_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .code | tr -d '"'`
-    if [[ "${NAMESPACE_DATA}" == "Notfound" ]]; then
+    if [ ${NAMESPACE_DATA} == 'NotFound' ]; then
         echo "Creating namespace ${NAMESPACE}..."
         curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "{\"type\":\"namespace\", \"metadata\": {\"name\":\"${NAMESPACE}\"}}" > /dev/null
         verify-namespace
@@ -259,6 +259,7 @@ create-namespace() {
     else
         echo "Namespace ${NAMESPACE} already exists"
     fi
+    exit 0
 }
 
 get-all-cluster-ids() {
@@ -336,7 +337,7 @@ assign-namespace-to-project() {
 
 verify-project-assignment() {
     echo "Verifying project assignment..."
-    curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations | grep "field.cattle.io/projectId" | awk '{print $2}' | tr -d '", ' | grep ${PROJECT_ID} > /dev/null
+    curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations | grep "field.cattle.io/projectId" | awk '{print $2}' | tr -d '", ' | grep ${PROJECT_ID}
     if [ $? -ne 0 ]; then
         echo "Failed to verify project assignment"
         exit 2
