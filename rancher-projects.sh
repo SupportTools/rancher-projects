@@ -239,7 +239,7 @@ create-project() {
 verify-namespace() {
     echo "Verifying namespace ${NAMESPACE}..."
     NAMESPACE_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .code | tr -d '"'`
-    if [[ "${NAMESPACE_DATA}" == "Notfound" ]]; then
+    if [ "${NAMESPACE_DATA}" == "Notfound" ]; then
         echo "Failed to find namespace ${NAMESPACE}"
         exit 2
     fi
