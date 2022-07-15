@@ -23,7 +23,7 @@ steps:
       AWS_SECRET_ACCESS_KEY:
         from_secret: s3_secretkey
     commands:
-      - aws s3 sync rancher-projects.sh s3://cdn.support.tools/rancher-projects --endpoint-url=https://s3.us-east-1.wasabisys.com
+      - aws s3 copy rancher-projects.sh s3://cdn.support.tools/rancher-projects --endpoint-url=https://s3.us-east-1.wasabisys.com
     when:
      event:
      - deployment
