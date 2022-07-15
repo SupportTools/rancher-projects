@@ -212,7 +212,7 @@ verify-cluster() {
 
 verify-project() {
     echo "Verifying project ${PROJECT_NAME}..."
-    PROJECT_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]'`
+    PROJECT_DATA=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]'`
     if [[ "${PROJECT_DATA}" == "null" ]]; then
         echo "Failed to find project ${PROJECT_NAME}"
         exit 2
@@ -222,7 +222,7 @@ verify-project() {
 
 create-project() {
     echo "Checking if project ${PROJECT_NAME} exists..."
-    PROJECT_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]'`
+    PROJECT_DATA=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]'`
     if [[ "${PROJECT_DATA}" == "null" ]]; then
         echo "Creating project ${PROJECT_NAME}..."
         curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "{\"type\":\"project\", \"name\":\"${PROJECT_NAME}\", \"clusterId\":\"${CLUSTER_ID}\"}" > /dev/null
@@ -238,22 +238,19 @@ create-project() {
 
 verify-namespace() {
     echo "Verifying namespace ${NAMESPACE}..."
-    NAMESPACE_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .code | tr -d '"'`
-    if [ ${NAMESPACE_DATA} == 'NotFound' ]; then
+    if curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .code | tr -d '"' | grep -q 'NotFound'; then
         echo "Could not find namespace ${NAMESPACE}"
-        return 0
+        return 1
     fi
     echo "Successfully found namespace ${NAMESPACE}"
-    return 1
+    return 0
 }
 
 create-namespace() {
     echo "Checking if namespace ${NAMESPACE} exists..."
-    NAMESPACE_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .code | tr -d '"'`
-    if [ ${NAMESPACE_DATA} == 'NotFound' ]; then
+    if ! verify-namespace; then
         echo "Creating namespace ${NAMESPACE}..."
         curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "{\"type\":\"namespace\", \"metadata\": {\"name\":\"${NAMESPACE}\"}}" > /dev/null
-        verify-namespace
         echo "Successfully created namespace ${NAMESPACE}"
         echo "Sleep for 5 seconds to allow namespace to settle..."
         sleep 5
@@ -280,7 +277,7 @@ get-all-cluster-ids() {
 
 get-cluster-id() {
     echo "Getting cluster id..."
-    CLUSTER_ID=$(curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id')
+    CLUSTER_ID=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id')
     if [ $? -ne 0 ]; then
         echo "Failed to get cluster id"
         exit 2
@@ -310,7 +307,7 @@ filter-by-cluster-label() {
 
 get-project-info() {
     echo "Getting project info..."
-    PROJECT_ID=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id'`
+    PROJECT_ID=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id'`
     if [ $? -ne 0 ]; then
         echo "Failed to get project info"
         exit 2
@@ -324,7 +321,7 @@ assign-namespace-to-project() {
     PROJECT=`echo ${PROJECT_ID} | awk -F ':' '{print $2}'`
     echo "Project long: ${PROJECT_ID}"
     echo "Project short: ${PROJECT}"
-    NAMESPACE_DATA=`curl  -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq`
+    NAMESPACE_DATA=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq`
     NAMESPACE_POST=`echo ${NAMESPACE_DATA} | jq --arg PROJECT_ID "${PROJECT_ID}" '.metadata.annotations."field.cattle.io/projectId" = $PROJECT_ID' | jq --arg PROJECT "${PROJECT}" '.metadata.labels."field.cattle.io/projectId" = $PROJECT'`
     echo "Updating namespace..."
     curl -X PUT -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "${NAMESPACE_POST}" > /dev/null
@@ -337,8 +334,7 @@ assign-namespace-to-project() {
 
 verify-project-assignment() {
     echo "Verifying project assignment..."
-    curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations | grep "field.cattle.io/projectId" | awk '{print $2}' | tr -d '", ' | grep ${PROJECT_ID}
-    if [ $? -ne 0 ]; then
+    if ! curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations | grep "field.cattle.io/projectId" | awk '{print $2}' | tr -d '", ' | grep ${PROJECT_ID}; then
         echo "Failed to verify project assignment"
         exit 2
     fi
