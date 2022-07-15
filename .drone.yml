@@ -1,0 +1,30 @@
+---
+kind: pipeline
+type: kubernetes
+name: Rancher-Projects
+
+platform:
+  os: linux
+  arch: amd64
+
+clone:
+  depth: 1
+
+concurrency:
+  limit: 1
+
+
+steps:
+  - name: Publish-to-CDN
+    image: supporttools/kube-builder:latest
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: s3_accesskey
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: s3_secretkey
+    commands:
+      - aws s3 sync rancher-projects.sh s3://cdn.support.tools/rancher-projects --endpoint-url=https://s3.us-east-1.wasabisys.com
+    when:
+     event:
+     - deployment
+     - promote

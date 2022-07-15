@@ -1,4 +1,5 @@
 # rancher-projects
+[![Build Status](https://drone.support.tools/api/badges/SupportTools/rancher-projects/status.svg?ref=refs/heads/main)](https://drone.support.tools/SupportTools/rancher-projects)
 The goal of this project is to provide a tool for creating projects and namespaces in Rancher then assigns a namespace to a project.
 
 ## Installation
