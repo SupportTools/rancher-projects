@@ -212,8 +212,9 @@ verify-cluster() {
 }
 
 get-cluster-status() {
-    echo "Verifying cluster ${CLUSTER_NAME}..."
-    CLUSTER_STATUS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].state')
+    local cluster_name=$1
+    echo "Verifying cluster ${cluster_name}..."
+    CLUSTER_STATUS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${cluster_name}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].state')
 }
 
 verify-project() {
@@ -392,7 +393,7 @@ else
         cluster_name=`echo ${CLUSTER_ID} | awk -F ':' '{print $1}'`
         cluster_id=`echo ${CLUSTER_ID} | awk -F ':' '{print $2}'`
         echo "Checking is cluster is Active..."
-        get-cluster-status
+        get-cluster-status ${cluster_name}
         if [[ ${CLUSTER_STATUS} == "active" ]]; then
             echo "Cluster is Active"
             if [ ! -z ${CLUSTER_LABELS} ]
