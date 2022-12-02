@@ -14,6 +14,7 @@ usage() {
     echo "  --rancher-secret-key        Rancher Secret Key                           Example: abcdefghijklmnopqrstuvwxyz"
     echo "  --create-kubeconfig         Generates kubeconfig file for the cluster"
     echo "  --get-clusters-by-type      Returns a list of clusters by type           Example: rke2"
+    echo "  --get-clusters-by-label     Returns a list of clusters by label          Example: rke2-upgrade=true,maintenance=true"
     echo "  --kubeconfig                Overrides the kubeconfig file name           Default: rancher-projects-kubeconfig"
     echo "  --kubeconfig-dir            Overrides the kubeconfig file directory      Default: Current directory"
     echo "  --kubeconfig-prefix         Overrides the kubeconfig file prefix         Default: <blank>"
@@ -271,7 +272,6 @@ get-all-cluster-ids() {
     if [[ ! -z $CLUSTER_LABELS ]]
     then
       echo "Filtering by cluster label(s)"
-
     fi
 }
 
