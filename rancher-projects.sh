@@ -269,14 +269,9 @@ create-namespace() {
 
 get-all-cluster-ids() {
     echo "Getting all cluster ids..."
-    if [ ! -z $CLUSTER_TYPE ]; then
-      echo "Selecting clusters of type ${CLUSTER_TYPE}..."
-      CLUSTER_IDS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?driver=${CLUSTER_TYPE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[] | .name + ":" + .id')
-    else
-      echo "Getting all clusters..."
-      CLUSTER_IDS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[] | .name + ":" + .id')
-    fi
-    if [ -z $CLUSTER_IDS ]; then
+    CLUSTER_IDS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[] | .name + ":" + .id')
+    echo "Cluster ids: ${CLUSTER_IDS}"
+    if [[ -z $CLUSTER_IDS ]]; then
         echo "Failed to get cluster ids"
         exit 2
     fi
@@ -290,6 +285,18 @@ get-cluster-id() {
         exit 2
     fi
     echo "Cluster id: ${CLUSTER_ID}"
+    echo "Successfully got cluster id"
+}
+
+get-cluster-type() {
+    local cluster_name=$1
+    echo "Getting cluster id..."
+    CLUSTER_PROVIDER=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${cluster_name}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].provider')
+    if [ $? -ne 0 ]; then
+        echo "Failed to get cluster id"
+        exit 2
+    fi
+    echo "Cluster Provider: ${CLUSTER_PROVIDER}"
     echo "Successfully got cluster id"
 }
 
@@ -397,8 +404,14 @@ else
         get-cluster-status ${cluster_name}
         if [[ ${CLUSTER_STATUS} == "active" ]]; then
             echo "Cluster is Active"
-            if [ ! -z ${CLUSTER_LABELS} ]
-            then
+            if [ ! -z ${CLUSTER_TYPE} ]; then
+                echo "Checking cluster type..."
+                get-cluster-type ${cluster_name}
+                if [[ ${CLUSTER_TYPE} == ${CLUSTER_PROVIDER} ]]; then
+                    echo "Cluster type match found"
+                    generate-kubeconfig ${cluster_name} ${cluster_id}
+                fi
+            elif [ ! -z ${CLUSTER_LABELS} ]; then
                 found=0
                 foundall=0
                 labelcount=0
