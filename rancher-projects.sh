@@ -155,7 +155,7 @@ verify-settings() {
             fi
         fi
     fi
-    if [[ -z ${CLUSTER_TYPE} ]]; then
+    if [[ -z ${CLUSTER_TYPE} ]] && [[ -z ${CLUSTER_LABELS} ]]; then
         if [ "${DEBUG}" == "true" ]; then echo "Checking in single cluster mode"; fi
         if [[ -z $CLUSTER_NAME ]] || [[ -z $PROJECT_NAME ]] || [[ -z $NAMESPACE ]] || [[ -z $CATTLE_SERVER ]] || [[ -z $CATTLE_ACCESS_KEY ]] || [[ -z $CATTLE_SECRET_KEY ]]; then
             if [ "${DEBUG}" == "true" ]; then echo "Failed in single cluster mode"; fi
@@ -262,16 +262,16 @@ create-namespace() {
 
 get-all-cluster-ids() {
     echo "Getting all cluster ids..."
-    echo "CLUSTER_TYPE: ${CLUSTER_TYPE}"
-    CLUSTER_IDS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?driver=${CLUSTER_TYPE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[] | .name + ":" + .id')
-    if [ $? -ne 0 ]; then
-        echo "Failed to get cluster id"
-        exit 2
+    if [ ! -z $CLUSTER_TYPE ]; then
+      echo "Selecting clusters of type ${CLUSTER_TYPE}..."
+      CLUSTER_IDS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?driver=${CLUSTER_TYPE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[] | .name + ":" + .id')
+    else
+      echo "Getting all clusters..."
+      CLUSTER_IDS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[] | .name + ":" + .id')
     fi
-    echo "Successfully got cluster ids"
-    if [[ ! -z $CLUSTER_LABELS ]]
-    then
-      echo "Filtering by cluster label(s)"
+    if [ -z $CLUSTER_IDS ]; then
+        echo "Failed to get cluster ids"
+        exit 2
     fi
 }
 
@@ -361,7 +361,7 @@ generate-kubeconfig() {
 verify-tools
 verify-settings
 verify-access
-if [ -z ${CLUSTER_TYPE} ]; then
+if [ -z ${CLUSTER_TYPE} ] && [ -z ${CLUSTER_LABELS} ]; then
     verify-cluster
     get-cluster-id
     if [ "$CREATE_PROJECT" == "true" ]; then
