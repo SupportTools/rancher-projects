@@ -393,7 +393,7 @@ else
         cluster_id=`echo ${CLUSTER_ID} | awk -F ':' '{print $2}'`
         echo "Checking is cluster is Active..."
         get-cluster-status
-        if [[ ${CLUSTER_STATUS} == "Active" ]]; then
+        if [[ ${CLUSTER_STATUS} == "active" ]]; then
             echo "Cluster is Active"
             if [ ! -z ${CLUSTER_LABELS} ]
             then
