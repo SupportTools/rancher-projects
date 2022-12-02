@@ -211,6 +211,11 @@ verify-cluster() {
     echo "Successfully found cluster ${CLUSTER_NAME}"
 }
 
+get-cluster-status() {
+    echo "Verifying cluster ${CLUSTER_NAME}..."
+    CLUSTER_STATUS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].state')
+}
+
 verify-project() {
     echo "Verifying project ${PROJECT_NAME}..."
     PROJECT_DATA=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]'`
@@ -386,33 +391,40 @@ else
     for CLUSTER_ID in ${CLUSTER_IDS}; do
         cluster_name=`echo ${CLUSTER_ID} | awk -F ':' '{print $1}'`
         cluster_id=`echo ${CLUSTER_ID} | awk -F ':' '{print $2}'`
-        if [ ! -z ${CLUSTER_LABELS} ]
-        then
-            found=0
-            foundall=0
-            labelcount=0
-            for keypair in ${keypairs}
-            do
-                echo "Checking label ${keypair}"
-                filter-by-cluster-label ${cluster_name} ${keypair}
-            done
-            if [ "$labelcount" == "$keypaircount" ]
+        echo "Checking is cluster is Active..."
+        get-cluster-status
+        if [[ ${CLUSTER_STATUS} == "Active" ]]; then
+            echo "Cluster is Active"
+            if [ ! -z ${CLUSTER_LABELS} ]
             then
-              echo "found all labels"
-              foundall=1
+                found=0
+                foundall=0
+                labelcount=0
+                for keypair in ${keypairs}
+                do
+                    echo "Checking label ${keypair}"
+                    filter-by-cluster-label ${cluster_name} ${keypair}
+                done
+                if [ "$labelcount" == "$keypaircount" ]
+                then
+                echo "found all labels"
+                foundall=1
+                else
+                echo "Label count mismatch"
+                foundall=0
+                fi
             else
-              echo "Label count mismatch"
-              foundall=0
+                found=1
+            fi
+            if [ "$found" == "1" ] || [ "$foundall" == "1" ]
+            then
+                echo "Matching label or no label set"
+                generate-kubeconfig ${cluster_name} ${cluster_id}
+            else
+                echo "Skipping cluster due to missing label"
             fi
         else
-            found=1
-        fi
-        if [ "$found" == "1" ] || [ "$foundall" == "1" ]
-        then
-            echo "Matching label or no label set"
-            generate-kubeconfig ${cluster_name} ${cluster_id}
-        else
-            echo "Skipping cluster due to missing label"
+            echo "Skipping Cluster because it is not Active"
         fi
         echo "##################################################################################"
     done
