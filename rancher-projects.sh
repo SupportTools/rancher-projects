@@ -212,9 +212,10 @@ verify-cluster() {
 }
 
 get-cluster-status() {
-    local cluster_name=$1
+    cluster_name=$1
     echo "Verifying cluster ${cluster_name}..."
     CLUSTER_STATUS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${cluster_name}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].state')
+    if [ "${DEBUG}" == "true" ]; then echo "Cluster status: ${CLUSTER_STATUS}"; fi
 }
 
 verify-project() {
