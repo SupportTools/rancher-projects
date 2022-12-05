@@ -1,6 +1,8 @@
 #!/bin/bash
 
-#set -x
+DEBUG=true
+
+set -x
 
 usage() {
     echo "Usage: $0"
@@ -155,20 +157,21 @@ verify-settings() {
             fi
         fi
     fi
-    if [[ -z ${CLUSTER_TYPE} ]] && [[ -z ${CLUSTER_LABELS} ]]; then
-        if [ "${DEBUG}" == "true" ]; then echo "Checking in single cluster mode"; fi
-        if [[ -z $CLUSTER_NAME ]] || [[ -z $PROJECT_NAME ]] || [[ -z $NAMESPACE ]] || [[ -z $CATTLE_SERVER ]] || [[ -z $CATTLE_ACCESS_KEY ]] || [[ -z $CATTLE_SECRET_KEY ]]; then
-            if [ "${DEBUG}" == "true" ]; then echo "Failed in single cluster mode"; fi
-            usage
-            exit 1
-        fi
-    else
-        if [ "${DEBUG}" == "true" ]; then echo "Checking in cluster type mode"; fi
-        if [[ -z $CATTLE_SERVER ]] || [[ -z $CATTLE_ACCESS_KEY ]] || [[ -z $CATTLE_SECRET_KEY ]]; then
-            if [ "${DEBUG}" == "true" ]; then echo "Failed in cluster type mode"; fi
-            usage
-            exit 1
-        fi
+    if [ -z "${CLUSTER_NAME}" ] && [ -z "${CLUSTER_TYPE}" ] && [ -z "${CLUSTER_LABELS}" ]; then
+        echo "Cluster name, type, or label is required. Please specify one and try again."
+        exit 1
+    fi
+    if [ -z "${CATTLE_SERVER}" ]; then
+        echo "Project name is required. Please specify a project name and try again."
+        exit 1
+    fi
+    if [ -z "${CATTLE_ACCESS_KEY}" ]; then
+        echo "Rancher Access Key is required. Please specify a Rancher Access Key and try again."
+        exit 1
+    fi
+    if [ -z "${CATTLE_SECRET_KEY}" ]; then
+        echo "Rancher Secret Key is required. Please specify a Rancher Secret Key and try again."
+        exit 1
     fi
     if [ "${DEBUG}" == "true" ]; then
         set -x
@@ -183,6 +186,7 @@ verify-settings() {
         echo "CATTLE_SECRET_KEY: ${CATTLE_SECRET_KEY}"
         echo "CREATE_KUBECONFIG: ${CREATE_KUBECONFIG}"
         echo "CLUSTER_TYPE: ${CLUSTER_TYPE}"
+        echo "CLUSTER_LABELS: ${CLUSTER_LABELS}"
         echo "KUBECONFIG: ${KUBECONFIG}"
         echo "KUBECONFIG_DIR: ${KUBECONFIG_DIR}"
         echo "KUBECONFIG_PREFIX: ${KUBECONFIG_PREFIX}"
@@ -378,20 +382,23 @@ verify-access
 if [ -z ${CLUSTER_TYPE} ] && [ -z ${CLUSTER_LABELS} ]; then
     verify-cluster
     get-cluster-id
-    if [ "$CREATE_PROJECT" == "true" ]; then
-        create-project
+    if [ ! -z ${PROJECT_NAME} ]; then
+        if [ "$CREATE_PROJECT" == "true" ]; then
+            create-project
+        fi
+        verify-project
+        get-project-info
+        if [ "$CREATE_NAMESPACE" == "true" ]; then
+            create-namespace
+        else
+            verify-namespace
+        fi
+        assign-namespace-to-project
+        verify-project-assignment
+
     fi
-    verify-project
-    get-project-info
-    if [ "$CREATE_NAMESPACE" == "true" ]; then
-        create-namespace
-    else
-        verify-namespace
-    fi
-    assign-namespace-to-project
-    verify-project-assignment
     if [ "$CREATE_KUBECONFIG" == "true" ]; then
-        generate-kubeconfig
+        generate-kubeconfig ${KUBECONFIG_FILE} ${CLUSTER_ID}
     fi
 else
     get-all-cluster-ids
