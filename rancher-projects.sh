@@ -1,8 +1,6 @@
 #!/bin/bash
 
-DEBUG=true
-
-set -x
+#set -x
 
 usage() {
     echo "Usage: $0"
