@@ -363,9 +363,52 @@ generate-kubeconfig() {
     curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters/${CLUSTER_ID}?action=generateKubeconfig" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.config' > "${KUBECONFIG_DIR}/${KUBECONFIG_FILE}"
 }
 
-verify-tools
-verify-settings
-verify-access
+verifyTools() {
+    echo "Verifying tools..."
+
+    # Check if required tools are installed
+    if ! command -v curl >/dev/null 2>&1; then
+        echo "curl is required but not installed. Please install curl and try again."
+        exit 1
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "jq is required but not installed. Please install jq and try again."
+        exit 1
+    fi
+
+    # Add more tool verifications if needed
+
+    echo "Tool verification complete."
+}
+
+verifySettings() {
+    echo "Verifying settings..."
+
+    if [[ -z "${CLUSTER_NAME}" ]]; then
+        echo "CLUSTER_NAME is required. Please specify it and try again."
+        exit 1
+    fi
+
+    # Check for other required settings and perform additional verifications
+
+    echo "Settings verification complete."
+}
+
+verifyAccess() {
+    echo "Verifying access to Rancher server..."
+
+    # Perform a curl request to the Rancher server to verify access
+    response=$(curl -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}" "${CATTLE_SERVER}/v3/" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}")
+
+    if [ "${response}" -ne 200 ]; then
+        echo "Failed to authenticate to ${CATTLE_SERVER}"
+        exit 2
+    fi
+
+    echo "Successfully authenticated to ${CATTLE_SERVER}"
+}
+
 
 if [ -z "${CLUSTER_TYPE}" ] && [ -z "${CLUSTER_LABELS}" ]; then
     verify-cluster
