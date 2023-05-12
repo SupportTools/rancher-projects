@@ -42,7 +42,6 @@ case $1 in
     --create-project)
     CREATE_PROJECT="true"
     shift # past argument
-    shift # past value
     ;;
     -n|--namespace)
     NAMESPACE="$2"
@@ -52,7 +51,6 @@ case $1 in
     --create-namespace)
     CREATE_NAMESPACE="true"
     shift # past argument
-    shift # past value
     ;;
     -s|--rancher-server)
     CATTLE_SERVER="$2"
@@ -72,7 +70,6 @@ case $1 in
     --create-kubeconfig)
     CREATE_KUBECONFIG="true"
     shift # past argument
-    shift # past value
     ;;
     --get-clusters-by-type)
     CLUSTER_TYPE="$2"
@@ -94,7 +91,7 @@ case $1 in
     shift # past argument
     shift # past value
     ;;
-    --kubeconfig-prexfix)
+    --kubeconfig-prefix)
     KUBECONFIG_PREFIX="$2"
     shift # past argument
     shift # past value
@@ -102,12 +99,10 @@ case $1 in
     -d|--debug)
     DEBUG="true"
     shift # past argument
-    shift # past value
     ;;
     -h|--help)
     usage
     shift # past argument
-    shift # past value
     ;;
     -*|--*)
     echo "Unknown option $1"
@@ -127,27 +122,42 @@ then
     set -x
 fi
 
-verify-tools() {
-    echo "Verifying tools..."
-    if ! command -v jq >/dev/null 2>&1; then
-        echo "jq is not installed. Please install jq and try again."
-        exit 1
-    fi
-    if ! command -v curl >/dev/null 2>&1; then
-        echo "curl is not installed. Please install curl and try again."
+verify-command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        echo "$1 is not installed. Please install $1 and try again."
         exit 1
     fi
 }
 
-verify-settings() {
+verify-tools() {
+    echo "Verifying tools..."
+    verify-command() {
+        if ! command -v "$1" >/dev/null 2>&1; then
+            echo "$1 is not installed. Please install $1 and try again."
+            exit 1
+        fi
+    }
+
+    verify-command jq
+    verify-command curl
+}
+
+verify_settings() {
     echo "Verifying settings..."
+
     if [ -z "${KUBECONFIG}" ]; then
-        if [ "${DEBUG}" == "true" ]; then echo "Using Kubeconfig DIR"; fi
+        if [ "${DEBUG}" == "true" ]; then
+            echo "Using Kubeconfig DIR"
+        fi
         if [ -z "${KUBECONFIG_DIR}" ]; then
             KUBECONFIG_DIR="$(pwd)"
-            if [ "${DEBUG}" == "true" ]; then echo "Defaulting to pwd"; fi
+            if [ "${DEBUG}" == "true" ]; then
+                echo "Defaulting to pwd"
+            fi
         else
-            if [ "${DEBUG}" == "true" ]; then echo "Making  Kubeconfig DIR"; fi
+            if [ "${DEBUG}" == "true" ]; then
+                echo "Making Kubeconfig DIR"
+            fi
             mkdir -p "${KUBECONFIG_DIR}"
             if [ ! -d "${KUBECONFIG_DIR}" ]; then
                 echo "Kubeconfig directory does not exist. Please create it and try again."
@@ -155,48 +165,29 @@ verify-settings() {
             fi
         fi
     fi
-    if [ -z "${CLUSTER_NAME}" ] && [ -z "${CLUSTER_TYPE}" ] && [ -z "${CLUSTER_LABELS}" ]; then
-        echo "Cluster name, type, or label is required. Please specify one and try again."
-        exit 1
-    fi
-    if [ -z "${CATTLE_SERVER}" ]; then
-        echo "Project name is required. Please specify a project name and try again."
-        exit 1
-    fi
-    if [ -z "${CATTLE_ACCESS_KEY}" ]; then
-        echo "Rancher Access Key is required. Please specify a Rancher Access Key and try again."
-        exit 1
-    fi
-    if [ -z "${CATTLE_SECRET_KEY}" ]; then
-        echo "Rancher Secret Key is required. Please specify a Rancher Secret Key and try again."
-        exit 1
-    fi
+
+    required_vars=("CLUSTER_NAME" "CLUSTER_TYPE" "CLUSTER_LABELS" "CATTLE_SERVER" "CATTLE_ACCESS_KEY" "CATTLE_SECRET_KEY")
+
+    for var in "${required_vars[@]}"; do
+        if [ -z "${!var}" ]; then
+            echo "${var} is required. Please specify it and try again."
+            exit 1
+        fi
+    done
+
     if [ "${DEBUG}" == "true" ]; then
         set -x
         echo "Dumping options"
-        echo "CLUSTER_NAME: ${CLUSTER_NAME}"
-        echo "PROJECT_NAME: ${PROJECT_NAME}"
-        echo "CREATE_PROJECT: ${CREATE_PROJECT}"
-        echo "NAMESPACE: ${NAMESPACE}"
-        echo "CREATE_NAMESPACE: ${CREATE_NAMESPACE}"
-        echo "CATTLE_SERVER: ${CATTLE_SERVER}"
-        echo "CATTLE_ACCESS_KEY: ${CATTLE_ACCESS_KEY}"
-        echo "CATTLE_SECRET_KEY: ${CATTLE_SECRET_KEY}"
-        echo "CREATE_KUBECONFIG: ${CREATE_KUBECONFIG}"
-        echo "CLUSTER_TYPE: ${CLUSTER_TYPE}"
-        echo "CLUSTER_LABELS: ${CLUSTER_LABELS}"
-        echo "KUBECONFIG: ${KUBECONFIG}"
-        echo "KUBECONFIG_DIR: ${KUBECONFIG_DIR}"
-        echo "KUBECONFIG_PREFIX: ${KUBECONFIG_PREFIX}"
-        echo "DEBUG: ${DEBUG}"
+        for var in "CLUSTER_NAME" "PROJECT_NAME" "CREATE_PROJECT" "NAMESPACE" "CREATE_NAMESPACE" "CATTLE_SERVER" "CATTLE_ACCESS_KEY" "CATTLE_SECRET_KEY" "CREATE_KUBECONFIG" "CLUSTER_TYPE" "CLUSTER_LABELS" "KUBECONFIG" "KUBECONFIG_DIR" "KUBECONFIG_PREFIX" "DEBUG"; do
+            echo "${var}: ${!var}"
+        done
     fi
-
 }
 
-verify-access() {
+verify_access() {
     echo "Verifying access to Rancher server..."
-    output=`curl -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}" "${CATTLE_SERVER}/v3/" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}"`
-    if [ $output -ne 200 ]; then
+    output=$(curl -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}" "${CATTLE_SERVER}/v3/" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}")
+    if [ "${output}" -ne 200 ]; then
         echo "Failed to authenticate to ${CATTLE_SERVER}"
         exit 2
     fi
@@ -205,8 +196,8 @@ verify-access() {
 
 verify-cluster() {
     echo "Verifying cluster ${CLUSTER_NAME}..."
-    output=`curl -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}"  -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}"`
-    if [ $output -ne 200 ]; then
+    output=$(curl -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}")
+    if [ "${output}" -ne 200 ]; then
         echo "Failed to find cluster ${CLUSTER_NAME}"
         exit 2
     fi
@@ -222,7 +213,7 @@ get-cluster-status() {
 
 verify-project() {
     echo "Verifying project ${PROJECT_NAME}..."
-    PROJECT_DATA=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]'`
+    PROJECT_DATA=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]')
     if [[ "${PROJECT_DATA}" == "null" ]]; then
         echo "Failed to find project ${PROJECT_NAME}"
         exit 2
@@ -232,7 +223,7 @@ verify-project() {
 
 create-project() {
     echo "Checking if project ${PROJECT_NAME} exists..."
-    PROJECT_DATA=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]'`
+    PROJECT_DATA=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0]')
     if [[ "${PROJECT_DATA}" == "null" ]]; then
         echo "Creating project ${PROJECT_NAME}..."
         curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "{\"type\":\"project\", \"name\":\"${PROJECT_NAME}\", \"clusterId\":\"${CLUSTER_ID}\"}" > /dev/null
@@ -262,7 +253,7 @@ create-namespace() {
         echo "Creating namespace ${NAMESPACE}..."
         curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "{\"type\":\"namespace\", \"metadata\": {\"name\":\"${NAMESPACE}\"}}" > /dev/null
         echo "Successfully created namespace ${NAMESPACE}"
-        echo "Sleep for 5 seconds to allow namespace to settle..."
+        echo "Sleeping for 5 seconds to allow namespace to settle..."
         sleep 5
     else
         echo "Namespace ${NAMESPACE} already exists"
@@ -270,49 +261,48 @@ create-namespace() {
 }
 
 get-all-cluster-ids() {
-    echo "Getting all cluster ids..."
+    echo "Getting all cluster IDs..."
     CLUSTER_IDS=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[] | .name + ":" + .id')
-    echo "Cluster ids: ${CLUSTER_IDS}"
+    echo "Cluster IDs: ${CLUSTER_IDS}"
     if [[ -z $CLUSTER_IDS ]]; then
-        echo "Failed to get cluster ids"
+        echo "Failed to get cluster IDs"
         exit 2
     fi
 }
 
 get-cluster-id() {
-    echo "Getting cluster id..."
+    echo "Getting cluster ID..."
     CLUSTER_ID=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${CLUSTER_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id')
     if [ $? -ne 0 ]; then
-        echo "Failed to get cluster id"
+        echo "Failed to get cluster ID"
         exit 2
     fi
-    echo "Cluster id: ${CLUSTER_ID}"
-    echo "Successfully got cluster id"
+    echo "Cluster ID: ${CLUSTER_ID}"
+    echo "Successfully got cluster ID"
 }
 
 get-cluster-type() {
     local cluster_name=$1
-    echo "Getting cluster id..."
+    echo "Getting cluster provider..."
     CLUSTER_PROVIDER=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${cluster_name}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].provider')
     if [ $? -ne 0 ]; then
-        echo "Failed to get cluster id"
+        echo "Failed to get cluster provider"
         exit 2
     fi
     echo "Cluster Provider: ${CLUSTER_PROVIDER}"
-    echo "Successfully got cluster id"
+    echo "Successfully got cluster provider"
 }
 
 filter-by-cluster-label() {
-    cluster_name=$1
-    keypair=$2
+    local cluster_name=$1
+    local keypair=$2
     echo "Filtering by cluster label"
-    echo "Clustername: ${cluster_name}"
+    echo "Cluster Name: ${cluster_name}"
     echo "Label: ${keypair}"
-    key=`echo ${keypair} | awk -F '=' '{print $1}'`
-    value=`echo ${keypair} | awk -F '=' '{print $2}'`
-    LABEL=`echo "\"$key\": \"${value}\""`
-    if curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${cluster_name}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r .data[0].labels | grep "${LABEL}" > /dev/null
-    then
+    key=$(echo "${keypair}" | awk -F '=' '{print $1}')
+    value=$(echo "${keypair}" | awk -F '=' '{print $2}')
+    LABEL=$(echo "\"$key\": \"${value}\"")
+    if curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters?name=${cluster_name}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r ".data[0].labels | has({${LABEL}})" > /dev/null; then
         echo "Label match found"
         found=1
         labelcount=$((labelcount+1))
@@ -323,22 +313,22 @@ filter-by-cluster-label() {
 
 get-project-info() {
     echo "Getting project info..."
-    PROJECT_ID=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id'`
+    PROJECT_ID=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/projects?clusterId=${CLUSTER_ID}&name=${PROJECT_NAME}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.data[0].id')
     if [ $? -ne 0 ]; then
         echo "Failed to get project info"
         exit 2
     fi
-    echo "Project id: ${PROJECT_ID}"
+    echo "Project ID: ${PROJECT_ID}"
 }
 
 assign-namespace-to-project() {
     echo "Assigning namespace ${NAMESPACE} to project ${PROJECT_NAME}..."
     echo "Collecting namespace details..."
-    PROJECT=`echo ${PROJECT_ID} | awk -F ':' '{print $2}'`
+    PROJECT=$(echo "${PROJECT_ID}" | awk -F ':' '{print $2}')
     echo "Project long: ${PROJECT_ID}"
     echo "Project short: ${PROJECT}"
-    NAMESPACE_DATA=`curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq`
-    NAMESPACE_POST=`echo ${NAMESPACE_DATA} | jq --arg PROJECT_ID "${PROJECT_ID}" '.metadata.annotations."field.cattle.io/projectId" = $PROJECT_ID' | jq --arg PROJECT "${PROJECT}" '.metadata.labels."field.cattle.io/projectId" = $PROJECT'`
+    NAMESPACE_DATA=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq)
+    NAMESPACE_POST=$(echo "${NAMESPACE_DATA}" | jq --arg PROJECT_ID "${PROJECT_ID}" '.metadata.annotations."field.cattle.io/projectId" = $PROJECT_ID' | jq --arg PROJECT "${PROJECT}" '.metadata.labels."field.cattle.io/projectId" = $PROJECT')
     echo "Updating namespace..."
     curl -X PUT -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "${NAMESPACE_POST}" > /dev/null
     if [ $? -ne 0 ]; then
@@ -350,7 +340,7 @@ assign-namespace-to-project() {
 
 verify-project-assignment() {
     echo "Verifying project assignment..."
-    if ! curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations | grep "field.cattle.io/projectId" | awk '{print $2}' | tr -d '", ' | grep ${PROJECT_ID}; then
+    if ! curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq .metadata.annotations | grep "field.cattle.io/projectId" | awk '{print $2}' | tr -d '", ' | grep -q "${PROJECT_ID}"; then
         echo "Failed to verify project assignment"
         exit 2
     fi
@@ -359,93 +349,102 @@ verify-project-assignment() {
 
 generate-kubeconfig() {
     echo "Generating kubeconfig..."
-    if [ -z "$KUBECONFIG" ]; then
+    if [ -z "${KUBECONFIG}" ]; then
         KUBECONFIG_FILE=$1
         CLUSTER_ID=$2
     else
-        KUBECONFIG_FILE=${KUBECONFIG}
+        KUBECONFIG_FILE="${KUBECONFIG}"
     fi
-    if [ ! -z "$KUBECONFIG_PREFIX" ]
-    then
+    if [ ! -z "${KUBECONFIG_PREFIX}" ]; then
         KUBECONFIG_FILE="${KUBECONFIG_PREFIX}-${KUBECONFIG_FILE}"
     fi
     echo "Kubeconfig file: ${KUBECONFIG_FILE}"
-    echo "Cluster id: ${CLUSTER_ID}"
-    curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters/${CLUSTER_ID}?action=generateKubeconfig" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.config' > ${KUBECONFIG_DIR}/${KUBECONFIG_FILE}
+    echo "Cluster ID: ${CLUSTER_ID}"
+    curl -X POST -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/v3/clusters/${CLUSTER_ID}?action=generateKubeconfig" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq -r '.config' > "${KUBECONFIG_DIR}/${KUBECONFIG_FILE}"
 }
 
 verify-tools
 verify-settings
 verify-access
-if [ -z ${CLUSTER_TYPE} ] && [ -z ${CLUSTER_LABELS} ]; then
+
+if [ -z "${CLUSTER_TYPE}" ] && [ -z "${CLUSTER_LABELS}" ]; then
     verify-cluster
     get-cluster-id
-    if [ ! -z ${PROJECT_NAME} ]; then
-        if [ "$CREATE_PROJECT" == "true" ]; then
+
+    if [ ! -z "${PROJECT_NAME}" ]; then
+        if [ "${CREATE_PROJECT}" == "true" ]; then
             create-project
         fi
         verify-project
         get-project-info
-        if [ "$CREATE_NAMESPACE" == "true" ]; then
+
+        if [ "${CREATE_NAMESPACE}" == "true" ]; then
             create-namespace
         else
             verify-namespace
         fi
+
         assign-namespace-to-project
         verify-project-assignment
-
     fi
-    if [ "$CREATE_KUBECONFIG" == "true" ]; then
-        generate-kubeconfig ${KUBECONFIG_FILE} ${CLUSTER_ID}
+
+    if [ "${CREATE_KUBECONFIG}" == "true" ]; then
+        generate-kubeconfig "${KUBECONFIG_FILE}" "${CLUSTER_ID}"
     fi
 else
     get-all-cluster-ids
-    keypairs=`echo ${CLUSTER_LABELS} | sed -e 's/,/\n/g'`
-    keypaircount=`echo ${CLUSTER_LABELS} | sed -e 's/,/\n/g' | wc -l`
+    keypairs=$(echo "${CLUSTER_LABELS}" | sed -e 's/,/\n/g')
+    keypaircount=$(echo "${CLUSTER_LABELS}" | sed -e 's/,/\n/g' | wc -l)
+
     for CLUSTER_ID in ${CLUSTER_IDS}; do
-        cluster_name=`echo ${CLUSTER_ID} | awk -F ':' '{print $1}'`
-        cluster_id=`echo ${CLUSTER_ID} | awk -F ':' '{print $2}'`
-        echo "Checking is cluster is Active..."
-        get-cluster-status ${cluster_name}
-        if [[ ${CLUSTER_STATUS} == "active" ]]; then
+        cluster_name=$(echo "${CLUSTER_ID}" | awk -F ':' '{print $1}')
+        cluster_id=$(echo "${CLUSTER_ID}" | awk -F ':' '{print $2}')
+
+        echo "Checking if cluster is Active..."
+        get-cluster-status "${cluster_name}"
+
+        if [[ "${CLUSTER_STATUS}" == "active" ]]; then
             echo "Cluster is Active"
-            if [ ! -z ${CLUSTER_TYPE} ]; then
+
+            if [ ! -z "${CLUSTER_TYPE}" ]; then
                 echo "Checking cluster type..."
-                get-cluster-type ${cluster_name}
-                if [[ ${CLUSTER_TYPE} == ${CLUSTER_PROVIDER} ]]; then
+                get-cluster-type "${cluster_name}"
+
+                if [[ "${CLUSTER_TYPE}" == "${CLUSTER_PROVIDER}" ]]; then
                     echo "Cluster type match found"
-                    generate-kubeconfig ${cluster_name} ${cluster_id}
+                    generate-kubeconfig "${cluster_name}" "${cluster_id}"
                 fi
-            elif [ ! -z ${CLUSTER_LABELS} ]; then
+            elif [ ! -z "${CLUSTER_LABELS}" ]; then
                 found=0
                 foundall=0
                 labelcount=0
-                for keypair in ${keypairs}
-                do
+
+                for keypair in ${keypairs}; do
                     echo "Checking label ${keypair}"
-                    filter-by-cluster-label ${cluster_name} ${keypair}
+                    filter-by-cluster-label "${cluster_name}" "${keypair}"
                 done
-                if [ "$labelcount" == "$keypaircount" ]
-                then
-                echo "found all labels"
-                foundall=1
+
+                if [ "${labelcount}" == "${keypaircount}" ]; then
+                    echo "Found all labels"
+                    foundall=1
                 else
-                echo "Label count mismatch"
-                foundall=0
+                    echo "Label count mismatch"
+                    foundall=0
                 fi
             else
                 found=1
             fi
-            if [ "$found" == "1" ] || [ "$foundall" == "1" ]
-            then
+
+            if [ "${found}" == "1" ] || [ "${foundall}" == "1" ]; then
                 echo "Matching label or no label set"
-                generate-kubeconfig ${cluster_name} ${cluster_id}
+                generate-kubeconfig "${cluster_name}" "${cluster_id}"
             else
                 echo "Skipping cluster due to missing label"
             fi
         else
-            echo "Skipping Cluster because it is not Active"
+            echo "Skipping cluster because it is not Active"
         fi
+
         echo "##################################################################################"
     done
 fi
