@@ -327,16 +327,23 @@ assign-namespace-to-project() {
     PROJECT=$(echo "${PROJECT_ID}" | awk -F ':' '{print $2}')
     echo "Project long: ${PROJECT_ID}"
     echo "Project short: ${PROJECT}"
-    NAMESPACE_DATA=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" | jq)
+    
+    NAMESPACE_DATA=$(curl -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}")
+    if [ $? -ne 0 ]; then
+        echo "Failed to retrieve namespace ${NAMESPACE}"
+        exit 1
+    fi
+
     NAMESPACE_POST=$(echo "${NAMESPACE_DATA}" | jq --arg PROJECT_ID "${PROJECT_ID}" '.metadata.annotations."field.cattle.io/projectId" = $PROJECT_ID' | jq --arg PROJECT "${PROJECT}" '.metadata.labels."field.cattle.io/projectId" = $PROJECT')
     echo "Updating namespace..."
-    curl -X PUT -H 'content-type: application/json' -k -s "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "${NAMESPACE_POST}" > /dev/null
+    curl -X PUT -H 'content-type: application/json' -k -s -o /dev/null -w "%{http_code}" "${CATTLE_SERVER}/k8s/clusters/${CLUSTER_ID}/v1/namespaces/${NAMESPACE}" -u "${CATTLE_ACCESS_KEY}:${CATTLE_SECRET_KEY}" -d "${NAMESPACE_POST}" | grep -q "200"
     if [ $? -ne 0 ]; then
         echo "Failed to assign namespace ${NAMESPACE} to project ${PROJECT_NAME}"
         exit 2
     fi
     echo "Successfully assigned namespace ${NAMESPACE} to project ${PROJECT_NAME}"
 }
+
 
 verify-project-assignment() {
     echo "Verifying project assignment..."
@@ -427,8 +434,10 @@ if [ -z "${CLUSTER_TYPE}" ] && [ -z "${CLUSTER_LABELS}" ]; then
             verify-namespace
         fi
 
-        assign-namespace-to-project
-        verify-project-assignment
+        if [ "${ASSIGN_NAMESPACE_TO_PROJECT}" == "true" ]; then
+            assign-namespace-to-project
+            verify-project-assignment
+        fi
     fi
 
     if [ "${CREATE_KUBECONFIG}" == "true" ]; then
