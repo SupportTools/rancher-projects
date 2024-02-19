@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Checkout with tags
         run: git fetch --prune --unshallow --tags
@@ -27,9 +27,32 @@ jobs:
         run: |
           git log --format="%C(auto) %H %s" `git tag --sort=-committerdate | head -1`...HEAD > changelog.txt
           echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
-          gh release create ${{ github.event.inputs.tag }} -t ${{ github.event.inputs.tag }} -F changelog.txt
+          echo "🚀 New Features:" >> release_message.txt
+          echo "- Added support for creating projects and namespaces within a cluster" >> release_message.txt
+          echo "- Introduced functionality to filter and handle multiple clusters based on type or labels" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "🔧 Enhancements:" >> release_message.txt
+          echo "- Improved error handling and error messaging throughout the application" >> release_message.txt
+          echo "- Added more detailed debugging and logging capabilities" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "🔒 Security:" >> release_message.txt
+          echo "- Enhanced authentication and access verification for the Rancher server" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "📝 Improvements:" >> release_message.txt
+          echo "- Expanded configuration options for better customization and flexibility" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "🔨 Refactor:" >> release_message.txt
+          echo "- Refactored code for better readability and maintainability" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "📚 Documentation:" >> release_message.txt
+          echo "- Updated usage examples and provided detailed help message" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "👉 For detailed release notes and usage information, please refer to the documentation or run \`rancher-projects --help\`." >> release_message.txt
+          echo "" >> release_message.txt
+          echo "🌟 Thank you for using Rancher Projects! Let us know your feedback and suggestions for future improvements. Happy deploying! 🚢✨" >> release_message.txt
+          gh release create ${{ github.event.inputs.tag }} -t ${{ github.event.inputs.tag }} -F release_message.txt
 
-      - name: Create release
+      - name: Create annotated tag
         run: |
           git config --global user.email "mmattox@support.tools"
           git config --global user.name "Matthew Mattox"
