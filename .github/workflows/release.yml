@@ -28,7 +28,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
+          go-version: 'latest'
           check-latest: true
 
       - name: Install catgpt
@@ -36,9 +36,15 @@ jobs:
 
       - name: Generate release message
         id: release_message
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           release_message=$(find . -name "*.go" -print0 | xargs -0 cat | catgpt "Create a release message")
-          echo "::set-output name=release_message::$release_message"
+          echo "###############################################"
+          echo "Release Message:"
+          echo "$release_message"
+          echo "###############################################"
+          echo "RELEASE_MESSAGE=$release_message" >> $GITHUB_ENV
 
       - name: Get latest release tag
         id: get_latest_tag
@@ -55,7 +61,7 @@ jobs:
         if: github.ref == 'refs/heads/main'  # Only create release if triggered by main branch
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
-          gh release create ${{ steps.calculate_version.outputs.next_version }} -t ${{ steps.calculate_version.outputs.next_version }} -F <(echo "${{ steps.release_message.outputs.release_message }}")
+          gh release create ${{ steps.calculate_version.outputs.next_version }} -t ${{ steps.calculate_version.outputs.next_version }} -F $GITHUB_ENV
 
       - name: Create annotated tag
         if: github.ref == 'refs/heads/main'  # Only create tag if triggered by main branch
