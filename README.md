@@ -1,14 +1,16 @@
 # rancher-projects
+
 [![Build Status](https://drone.support.tools/api/badges/SupportTools/rancher-projects/status.svg?ref=refs/heads/main)](https://drone.support.tools/SupportTools/rancher-projects)
 The goal of this project is to provide a tool for creating projects and namespaces in Rancher then assigns a namespace to a project.
 
 ## Installation
+
 ```bash
 sudo curl -o /usr/local/bin/rancher-projects https://raw.githubusercontent.com/SupportTools/rancher-projects/main/rancher-projects.sh
 sudo chmod +x /usr/local/bin/rancher-projects
 ```
 
-of
+or
 
 ```bash
 wget -O rancher-projects https://raw.githubusercontent.com/SupportTools/rancher-projects/main/rancher-projects.sh
@@ -17,6 +19,7 @@ sudo mv rancher-projects /usr/local/bin/
 ```
 
 ## Usage
+
 ```bash
 bash run.sh \
 --rancher-server "https://rancher.mattox.local" \
@@ -32,6 +35,7 @@ bash run.sh \
 ```
 
 ## Options
+
 `--rancher-server` sets the Rancher Server. Note: This should include `https://`
 
 `--rancher-access-key` sets the Rancher Access Key. Note: This account should have permissions to list clusters, get/list/create/update projects and namespace.
@@ -59,6 +63,7 @@ bash run.sh \
 `--help` prints this help message.
 
 ## Examples
+
 ```bash
 rancher-projects --rancher-server "https://rancher.mattox.local" --rancher-access-key "token-abcde" --rancher-secret-key "123456789abcdefghijklmnopqrstuvwxyz"  --cluster-name a0-rke2-devops --project-name "ClusterServices" --namespace "monitoring" --create-project true --create-namespace true
 Verifying tools...
