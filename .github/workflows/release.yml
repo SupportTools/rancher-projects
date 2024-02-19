@@ -4,66 +4,68 @@ permissions:
     contents: write
 
 on:
+  push:
+    branches:
+      - main
   workflow_call:
     inputs:
       tag:
         description: 'Tag to create'
         required: true
-        default: 'v0.0.0'
+        default: 'v1.0.0'  # Starting version
         type: string
-  workflow_dispatch:
 
 jobs:
   run:
     name: Release
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  # Set the OpenAI API key as an environment variable
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Checkout with tags
-        run: git fetch --prune --unshallow --tags
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: true
+
+      - name: Install catgpt
+        run: go install github.com/ibuildthecloud/catgpt@main
+
+      - name: Generate release message
+        id: release_message
+        run: |
+          release_message=$(find . -name "*.go" -print0 | xargs -0 cat | catgpt "Create a release message")
+          echo "::set-output name=release_message::$release_message"
+
+      - name: Get latest release tag
+        id: get_latest_tag
+        run: echo "::set-output name=latest_tag::$(git describe --tags --abbrev=0)"
+
+      - name: Calculate next version
+        id: calculate_version
+        run: |
+          latest_tag=${{ steps.get_latest_tag.outputs.latest_tag }}
+          version=$(echo "$latest_tag" | sed 's/v//' | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+          echo "::set-output name=next_version::v$version"
 
       - name: Create release
+        if: github.ref == 'refs/heads/main'  # Only create release if triggered by main branch
         run: |
-          echo "🚀 New Features:" >> release_message.txt
-          echo "- Added support for creating projects and namespaces within a cluster" >> release_message.txt
-          echo "- Introduced functionality to filter and handle multiple clusters based on type or labels" >> release_message.txt
-          echo "" >> release_message.txt
-          echo "🔧 Enhancements:" >> release_message.txt
-          echo "- Improved error handling and error messaging throughout the application" >> release_message.txt
-          echo "- Added more detailed debugging and logging capabilities" >> release_message.txt
-          echo "" >> release_message.txt
-          echo "🔒 Security:" >> release_message.txt
-          echo "- Enhanced authentication and access verification for the Rancher server" >> release_message.txt
-          echo "" >> release_message.txt
-          echo "📝 Improvements:" >> release_message.txt
-          echo "- Expanded configuration options for better customization and flexibility" >> release_message.txt
-          echo "" >> release_message.txt
-          echo "🔨 Refactor:" >> release_message.txt
-          echo "- Refactored code for better readability and maintainability" >> release_message.txt
-          echo "" >> release_message.txt
-          echo "📚 Documentation:" >> release_message.txt
-          echo "- Updated usage examples and provided detailed help message" >> release_message.txt
-          echo "" >> release_message.txt
-          echo "👉 For detailed release notes and usage information, please refer to the documentation or run \`rancher-projects --help\`." >> release_message.txt
-          echo "" >> release_message.txt
-          echo "🌟 Thank you for using Rancher Projects! Let us know your feedback and suggestions for future improvements. Happy deploying! 🚢✨" >> release_message.txt
-          git log --format="%C(auto) %H %s" `git tag --sort=-committerdate | head -1`...HEAD > changelog.txt
           echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
-          TAG=${{ github.event.inputs.tag }}
-          if [ -z "$TAG" ]; then
-            TAG=${{ github.ref }}
-          fi
-          gh release create $TAG -t $TAG -F release_message.txt
+          gh release create ${{ steps.calculate_version.outputs.next_version }} -t ${{ steps.calculate_version.outputs.next_version }} -F <(echo "${{ steps.release_message.outputs.release_message }}")
 
       - name: Create annotated tag
+        if: github.ref == 'refs/heads/main'  # Only create tag if triggered by main branch
         run: |
           git config --global user.email "mmattox@support.tools"
           git config --global user.name "Matthew Mattox"
-          git tag -a ${{ github.event.inputs.tag }} -m ${{ github.event.inputs.tag }}
+          git tag -a ${{ steps.calculate_version.outputs.next_version }} -m ${{ steps.calculate_version.outputs.next_version }}
 
       - name: Run GoReleaser
+        if: github.ref == 'refs/heads/main'  # Only run GoReleaser if triggered by main branch
         uses: goreleaser/goreleaser-action@94b86e1b0200cc3baefc577476f7d63bc69ad382
         with:
           version: latest
