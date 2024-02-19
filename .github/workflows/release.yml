@@ -40,24 +40,24 @@ jobs:
         id: generate_release_message
         run: |
           echo "🚀 New Features:" > release_message.txt
-          echo "- Describe your new feature here" >> release_message.txt
+          cat $(find . -name "*.go") | catgpt "Create a list of new features" >> release_message.txt
           echo "" >> release_message.txt
           echo "🔧 Enhancements:" >> release_message.txt
-          echo "- Describe your enhancements here" >> release_message.txt
+          cat $(find . -name "*.go") | catgpt "Create a list of enhancements" >> release_message.txt
           echo "" >> release_message.txt
           echo "🔒 Security:" >> release_message.txt
-          echo "- Describe your security updates here" >> release_message.txt
+          cat $(find . -name "*.go") | catgpt "Create a list of security updates" >> release_message.txt
           echo "" >> release_message.txt
           echo "📝 Improvements:" >> release_message.txt
-          echo "- Describe your improvements here" >> release_message.txt
+          cat $(find . -name "*.go") | catgpt "Create a list of improvements" >> release_message.txt
           echo "" >> release_message.txt
           echo "🔨 Refactor:" >> release_message.txt
-          echo "- Describe your refactorings here" >> release_message.txt
+          cat $(find . -name "*.go") | catgpt "Create a list of refactorings" >> release_message.txt
           echo "" >> release_message.txt
           echo "📚 Documentation:" >> release_message.txt
-          echo "- Describe your documentation changes here" >> release_message.txt
+          cat $(find . -name "*.go") | catgpt "Create a list of documentation changes" >> release_message.txt
           echo "" >> release_message.txt
-          echo "👉 For detailed release notes and usage information, please refer to the documentation or run \`rancher-projects --help\`." >> release_message.txt
+          echo "👉 For detailed release notes and usage information, please refer to the documentation or run `rancher-projects --help`." >> release_message.txt
           echo "" >> release_message.txt
           echo "🌟 Thank you for using Rancher Projects! Let us know your feedback and suggestions for future improvements. Happy deploying! 🚢✨" >> release_message.txt
           echo "###############################################"
