@@ -4,34 +4,38 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"time"
 
 	"github.com/supporttools/rancher-projects/pkg/config"
 )
 
-func GetProjectInfo(cfg *config.Config, clusterID, projectName string) string {
+// GetProjectInfo fetches the project ID for a given project name within a specified cluster.
+func GetProjectInfo(cfg *config.Config, clusterID, projectName string) (string, error) {
 	fmt.Println("Getting project info...")
 
 	url := fmt.Sprintf("%s/v3/projects?clusterId=%s&name=%s", cfg.RancherServerURL, clusterID, projectName)
-	req, err := http.NewRequest("GET", url, nil)
+	// Updated to use http.NoBody instead of nil
+	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
-		log.Fatal("Failed to create HTTP request:", err)
+		return "", fmt.Errorf("failed to create HTTP request: %v", err)
 	}
 
 	authHeader := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", cfg.RancherAccessKey, cfg.RancherSecretKey)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", authHeader))
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: time.Second * 10, // 10 seconds timeout
+	}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to send HTTP request:", err)
+		return "", fmt.Errorf("failed to send HTTP request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal("Failed to get project info")
+		return "", fmt.Errorf("failed to get project info, status code: %d", resp.StatusCode)
 	}
 
 	var data struct {
@@ -40,17 +44,15 @@ func GetProjectInfo(cfg *config.Config, clusterID, projectName string) string {
 		} `json:"data"`
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&data)
-	if err != nil {
-		log.Fatal("Failed to decode JSON response:", err)
+	if err = json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return "", fmt.Errorf("failed to decode JSON response: %v", err)
 	}
 
 	if len(data.Data) == 0 {
-		log.Fatal("Failed to find project info")
+		return "", fmt.Errorf("failed to find project info for project name: %s", projectName)
 	}
 
 	projectID := data.Data[0].ID
 	fmt.Printf("Project ID: %s\n", projectID)
-	fmt.Println("Successfully got project info")
-	return projectID
+	return projectID, nil
 }

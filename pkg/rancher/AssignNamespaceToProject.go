@@ -5,34 +5,39 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"time"
 
 	"github.com/supporttools/rancher-projects/pkg/config"
 )
 
-func AssignNamespaceToProject(cfg *config.Config, clusterID, namespace, projectID string) {
+// AssignNamespaceToProject updates the project ID associated with a namespace in Rancher.
+// It returns an error in case of failure else nil.
+func AssignNamespaceToProject(cfg *config.Config, clusterID, namespace, projectID string) error {
 	fmt.Printf("Assigning namespace %s to project %s...\n", namespace, cfg.ProjectName)
 
 	url := fmt.Sprintf("%s/k8s/clusters/%s/v1/namespaces/%s", cfg.RancherServerURL, clusterID, namespace)
-	req, err := http.NewRequest("GET", url, nil)
+	// Use http.NoBody instead of nil for requests with no body.
+	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
-		log.Fatal("Failed to create HTTP request:", err)
+		return fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
 	authHeader := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", cfg.RancherAccessKey, cfg.RancherSecretKey)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", authHeader))
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: time.Second * 10, // 10 seconds timeout
+	}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to send HTTP request:", err)
+		return fmt.Errorf("failed to send HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal("Failed to assign namespace to project")
+		return fmt.Errorf("failed to assign namespace to project, status code: %d", resp.StatusCode)
 	}
 
 	var namespaceData struct {
@@ -45,20 +50,19 @@ func AssignNamespaceToProject(cfg *config.Config, clusterID, namespace, projectI
 
 	err = json.NewDecoder(resp.Body).Decode(&namespaceData)
 	if err != nil {
-		log.Fatal("Failed to decode JSON response:", err)
+		return fmt.Errorf("failed to decode JSON response: %w", err)
 	}
 
 	namespaceData.Metadata.Annotations.ProjectID = projectID
 
 	payload, err := json.Marshal(namespaceData)
 	if err != nil {
-		log.Fatal("Failed to marshal JSON payload:", err)
+		return fmt.Errorf("failed to marshal JSON payload: %w", err)
 	}
 
-	url = fmt.Sprintf("%s/k8s/clusters/%s/v1/namespaces/%s", cfg.RancherServerURL, clusterID, namespace)
 	req, err = http.NewRequest("PUT", url, bytes.NewBuffer(payload))
 	if err != nil {
-		log.Fatal("Failed to create HTTP request:", err)
+		return fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -66,13 +70,14 @@ func AssignNamespaceToProject(cfg *config.Config, clusterID, namespace, projectI
 
 	resp, err = client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to send HTTP request:", err)
+		return fmt.Errorf("failed to send HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal("Failed to assign namespace to project")
+		return fmt.Errorf("failed to assign namespace to project, status code: %d", resp.StatusCode)
 	}
 
 	fmt.Printf("Successfully assigned namespace %s to project %s\n", namespace, cfg.ProjectName)
+	return nil
 }

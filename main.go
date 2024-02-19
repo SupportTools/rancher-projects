@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/supporttools/rancher-projects/pkg/config"
 	"github.com/supporttools/rancher-projects/pkg/rancher"
 )
@@ -18,11 +20,18 @@ func main() {
 	}
 
 	// Verify access to Rancher
-	rancher.VerifyAccess(cfg)
+	if err := rancher.VerifyAccess(cfg); err != nil {
+		log.Fatalf("Failed to verify access to Rancher: %v", err)
+	}
 
-	if config.GetConfig().ClusterType == "" && config.GetConfig().ClusterLabels == "" {
-		rancher.HandleSingleCluster(cfg)
+	// Depending on the configuration, handle a single cluster or multiple clusters
+	if cfg.ClusterType == "" && cfg.ClusterLabels == "" {
+		if err := rancher.SingleCluster(cfg); err != nil {
+			log.Fatalf("Failed to handle single cluster: %v", err)
+		}
 	} else {
-		rancher.HandleMultiCluster(cfg)
+		if err := rancher.MultiCluster(cfg); err != nil {
+			log.Fatalf("Failed to handle multiple clusters: %v", err)
+		}
 	}
 }

@@ -4,34 +4,37 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"time"
 
 	"github.com/supporttools/rancher-projects/pkg/config"
 )
 
-func VerifyProjectAssignment(cfg *config.Config, clusterID, namespace, projectID string) {
+// VerifyProjectAssignment checks if a namespace is assigned to the specified project.
+func VerifyProjectAssignment(cfg *config.Config, clusterID, namespace, projectID string) error {
 	fmt.Println("Verifying project assignment...")
 
 	url := fmt.Sprintf("%s/k8s/clusters/%s/v1/namespaces/%s", cfg.RancherServerURL, clusterID, namespace)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
-		log.Fatal("Failed to create HTTP request:", err)
+		return fmt.Errorf("failed to create HTTP request: %v", err)
 	}
 
 	authHeader := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", cfg.RancherAccessKey, cfg.RancherSecretKey)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Basic %s", authHeader))
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: time.Second * 10, // 10 seconds timeout
+	}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to send HTTP request:", err)
+		return fmt.Errorf("failed to send HTTP request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal("Failed to verify project assignment")
+		return fmt.Errorf("failed to verify project assignment, status code: %d", resp.StatusCode)
 	}
 
 	var namespaceData struct {
@@ -42,14 +45,14 @@ func VerifyProjectAssignment(cfg *config.Config, clusterID, namespace, projectID
 		} `json:"metadata"`
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&namespaceData)
-	if err != nil {
-		log.Fatal("Failed to decode JSON response:", err)
+	if err = json.NewDecoder(resp.Body).Decode(&namespaceData); err != nil {
+		return fmt.Errorf("failed to decode JSON response: %v", err)
 	}
 
 	if namespaceData.Metadata.Annotations.ProjectID != projectID {
-		log.Fatal("Failed to verify project assignment")
+		return fmt.Errorf("project ID mismatch: expected %s, got %s", projectID, namespaceData.Metadata.Annotations.ProjectID)
 	}
 
 	fmt.Println("Successfully verified project assignment")
+	return nil
 }

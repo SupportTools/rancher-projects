@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 )
@@ -119,33 +120,20 @@ func checkMissingSettings() {
 
 // LoadConfig loads configuration from environment variables and command line flags
 func LoadConfig() {
-	cfg.ClusterType = getEnv("CLUSTER_TYPE", "")
-	cfg.ClusterLabels = getEnv("CLUSTER_LABELS", "")
-	cfg.ClusterStatus = getEnv("CLUSTER_STATUS", "")
-	cfg.ClusterID = getEnv("CLUSTER_ID", "")
+	cfg.ClusterType = getEnv("CLUSTER_TYPE")
+	cfg.ClusterLabels = getEnv("CLUSTER_LABELS")
+	cfg.ClusterStatus = getEnv("CLUSTER_STATUS")
+	cfg.ClusterID = getEnv("CLUSTER_ID")
 	cfg.ClusterIDs = getEnvArray("CLUSTER_IDS", ",")
-	cfg.ProjectName = getEnv("PROJECT_NAME", "")
-	cfg.CreateProject = getEnvBool("CREATE_PROJECT", false)
-	cfg.Namespace = getEnv("NAMESPACE", "")
-	cfg.CreateNamespace = getEnvBool("CREATE_NAMESPACE", false)
-	cfg.RancherServerURL = getEnv("RANCHER_SERVER", "")
-	cfg.RancherAccessKey = getEnv("RANCHER_ACCESS_KEY", "")
-	cfg.RancherSecretKey = getEnv("RANCHER_SECRET_KEY", "")
-	cfg.KubeconfigFile = getEnv("KUBECONFIG", "")
-	cfg.KubeconfigDir = getEnv("KUBECONFIG_DIR", "")
-	cfg.KubeconfigPrefix = getEnv("KUBECONFIG_PREFIX", "")
+	cfg.ProjectName = getEnv("PROJECT_NAME")
+	cfg.RancherServerURL = getEnv("RANCHER_SERVER")
+	cfg.RancherAccessKey = getEnv("RANCHER_ACCESS_KEY")
+	cfg.RancherSecretKey = getEnv("RANCHER_SECRET_KEY")
+	cfg.KubeconfigFile = getEnv("KUBECONFIG")
+	cfg.KubeconfigDir = getEnv("KUBECONFIG_DIR")
+	cfg.KubeconfigPrefix = getEnv("KUBECONFIG_PREFIX")
+	cfg.Namespace = getEnv("NAMESPACE")
 	cfg.Debug = getEnvBool("DEBUG", false)
-}
-
-func getConfigValue(flagName, envVarName, defaultValue string) string {
-	value := flag.Lookup(flagName).Value.String()
-	if value == "" {
-		value = os.Getenv(envVarName)
-		if value == "" {
-			value = defaultValue
-		}
-	}
-	return value
 }
 
 // GetConfig returns the current configuration instance
@@ -153,10 +141,15 @@ func GetConfig() *Config {
 	return currentConfig
 }
 
-func getEnv(key, fallback string) string {
+// getEnv gets an environment variable.
+// If the variable is not found, it returns an empty string.
+func getEnv(key string) string {
 	value, exists := os.LookupEnv(key)
 	if !exists {
-		return fallback
+		if flag.Lookup(key) != nil {
+			return flag.Lookup(key).DefValue
+		}
+		log.Fatalf("Environment variable %s is not set\n", key)
 	}
 	return value
 }
@@ -226,7 +219,6 @@ func PrintConfig() {
 	fmt.Println("Kubeconfig Prefix:", cfg.KubeconfigPrefix)
 	fmt.Println("Rancher Server URL:", cfg.RancherServerURL)
 	fmt.Println("Rancher Access Key:", cfg.RancherAccessKey)
-	//fmt.Println("Rancher Secret Key:", cfg.RancherSecretKey)
 }
 
 // ParseFlags parses command line flags
