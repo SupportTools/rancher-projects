@@ -22,8 +22,14 @@ jobs:
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  # Set the OpenAI API key as an environment variable
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: true
+
+      - name: Install catgpt
+        run: go install github.com/ibuildthecloud/catgpt@main
 
       - name: Get latest release tag
         id: get_latest_tag
