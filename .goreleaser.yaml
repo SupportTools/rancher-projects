@@ -4,9 +4,6 @@ env:
 gomod:
   proxy: true
 
-builds:
-  - skip: false
-
 changelog:
   sort: asc
   use: github
