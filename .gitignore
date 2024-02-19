@@ -2,3 +2,7 @@ kubeconfig
 kubeconfigs
 rancher-projects-kubeconfig
 rancher-projects
+dist/artifacts.json
+dist/CHANGELOG.md
+dist/config.yaml
+dist/metadata.json
