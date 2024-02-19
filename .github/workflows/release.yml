@@ -1,7 +1,7 @@
 name: release
   
 permissions:
-    contents: write
+  contents: write
 
 on:
   push:
@@ -25,27 +25,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
-          check-latest: true
-
-      - name: Install catgpt
-        run: go install github.com/ibuildthecloud/catgpt@main
-
-      - name: Generate release message
-        id: release_message
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          release_message=$(find . -name "*.go" -print0 | xargs -0 cat | catgpt "Create a release message")
-          echo "###############################################"
-          echo "Release Message:"
-          echo "$release_message"
-          echo "###############################################"
-          echo "RELEASE_MESSAGE=$release_message" >> $GITHUB_ENV
-
       - name: Get latest release tag
         id: get_latest_tag
         run: echo "::set-output name=latest_tag::$(git describe --tags --abbrev=0)"
@@ -57,11 +36,39 @@ jobs:
           version=$(echo "$latest_tag" | sed 's/v//' | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
           echo "::set-output name=next_version::v$version"
 
+      - name: Generate release message
+        id: generate_release_message
+        run: |
+          echo "🚀 New Features:" > release_message.txt
+          echo "- Describe your new feature here" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "🔧 Enhancements:" >> release_message.txt
+          echo "- Describe your enhancements here" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "🔒 Security:" >> release_message.txt
+          echo "- Describe your security updates here" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "📝 Improvements:" >> release_message.txt
+          echo "- Describe your improvements here" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "🔨 Refactor:" >> release_message.txt
+          echo "- Describe your refactorings here" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "📚 Documentation:" >> release_message.txt
+          echo "- Describe your documentation changes here" >> release_message.txt
+          echo "" >> release_message.txt
+          echo "👉 For detailed release notes and usage information, please refer to the documentation or run \`rancher-projects --help\`." >> release_message.txt
+          echo "" >> release_message.txt
+          echo "🌟 Thank you for using Rancher Projects! Let us know your feedback and suggestions for future improvements. Happy deploying! 🚢✨" >> release_message.txt
+          echo "###############################################"
+          cat release_message.txt
+          echo "###############################################"
+
       - name: Create release
         if: github.ref == 'refs/heads/main'  # Only create release if triggered by main branch
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
-          gh release create ${{ steps.calculate_version.outputs.next_version }} -t ${{ steps.calculate_version.outputs.next_version }} -F $GITHUB_ENV
+          gh release create ${{ steps.calculate_version.outputs.next_version }} -F release_message.txt
 
       - name: Create annotated tag
         if: github.ref == 'refs/heads/main'  # Only create tag if triggered by main branch
