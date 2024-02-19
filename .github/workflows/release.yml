@@ -28,7 +28,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 'latest'
+          go-version: 'stable'
           check-latest: true
 
       - name: Install catgpt
