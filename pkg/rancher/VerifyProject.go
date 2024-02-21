@@ -40,15 +40,19 @@ func VerifyProject(cfg *config.Config, clusterID, projectName string) error {
 		return fmt.Errorf("failed to read response body for project %s: %v", projectName, err)
 	}
 
-	var projects []map[string]interface{}
-	if err = json.Unmarshal(body, &projects); err != nil {
+	var response struct { // Define a more structured response if possible
+		Data []struct {
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+	if err = json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse project data for %s: %v", projectName, err)
 	}
 
-	if len(projects) == 0 {
-		return fmt.Errorf("failed to find project %s", projectName)
+	if len(response.Data) == 0 {
+		return fmt.Errorf("project %s not found in cluster %s", projectName, clusterID)
 	}
 
-	fmt.Printf("Successfully found project %s\n", projectName)
+	fmt.Printf("Successfully verified project %s exists in cluster %s.\n", projectName, clusterID)
 	return nil
 }

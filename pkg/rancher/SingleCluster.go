@@ -23,7 +23,7 @@ func SingleCluster(cfg *config.Config) error {
 	}
 
 	if cfg.ProjectName != "" {
-		if err := Project(cfg, clusterID); err != nil {
+		if err := MainProject(cfg, clusterID); err != nil {
 			log.Printf("Error handling project '%s': %v\n", cfg.ProjectName, err)
 			return fmt.Errorf("error handling project '%s': %v", cfg.ProjectName, err)
 		}
