@@ -9,13 +9,16 @@ import (
 
 // SingleCluster processes a single cluster by verifying it, handling projects within it, and optionally generating a kubeconfig.
 func SingleCluster(cfg *config.Config) error {
-	// VerifyCluster now returns an error which should be handled.
+
+	fmt.Println("Processing single cluster...")
+
+	fmt.Println("Verifying cluster...")
 	if err := VerifyCluster(cfg); err != nil {
 		log.Printf("Error verifying cluster: %v\n", err)
 		return fmt.Errorf("error verifying cluster: %v", err)
 	}
 
-	// GetClusterID now returns an ID and an error which should be handled.
+	fmt.Println("Getting cluster ID...")
 	clusterID, err := GetClusterID(cfg)
 	if err != nil {
 		log.Printf("Error getting cluster ID: %v\n", err)
@@ -29,11 +32,5 @@ func SingleCluster(cfg *config.Config) error {
 		}
 	}
 
-	if cfg.CreateKubeconfig {
-		if err := GenerateKubeconfig(cfg, cfg.KubeconfigFile, clusterID); err != nil {
-			log.Printf("Error generating kubeconfig for cluster '%s': %v\n", clusterID, err)
-			return fmt.Errorf("error generating kubeconfig for cluster '%s': %v", clusterID, err)
-		}
-	}
 	return nil
 }

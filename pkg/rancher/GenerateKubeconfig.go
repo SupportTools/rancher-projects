@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/supporttools/rancher-projects/pkg/config"
@@ -52,11 +51,7 @@ func GenerateKubeconfig(cfg *config.Config, kubeconfigFile, clusterID string) er
 		return fmt.Errorf("failed to decode JSON response: %w", err)
 	}
 
-	// Create the directory for the kubeconfig file if it doesn't exist.
-	if err := os.MkdirAll(filepath.Dir(kubeconfigFile), 0o755); err != nil {
-		return fmt.Errorf("failed to create kubeconfig directory: %w", err)
-	}
-
+	fmt.Println("Creating kubeconfig file...")
 	// Create the kubeconfig file if it doesn't exist.
 	if _, err := os.Stat(kubeconfigFile); os.IsNotExist(err) {
 		if _, err := os.Create(kubeconfigFile); err != nil {
@@ -64,6 +59,7 @@ func GenerateKubeconfig(cfg *config.Config, kubeconfigFile, clusterID string) er
 		}
 	}
 
+	fmt.Println("Writing kubeconfig data to file...")
 	// Write the kubeconfig data to the specified file.
 	if err := os.WriteFile(kubeconfigFile, []byte(data.Config), 0o644); err != nil {
 		return fmt.Errorf("failed to write kubeconfig file: %w", err)

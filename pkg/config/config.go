@@ -55,6 +55,13 @@ func Init() {
 	flag.StringVar(&currentConfig.RancherServerURL, "rancher-server", "", "Rancher server URL")
 	flag.Parse()
 
+	// Check if create-kubeconfig flag is true, then set KubeconfigFile
+	if currentConfig.CreateKubeconfig {
+		if currentConfig.KubeconfigFile == "" {
+			currentConfig.KubeconfigFile = "rancher-projects-kubeconfig"
+		}
+	}
+
 	// Initialize the cfg variable with command line flag values
 	cfg = *currentConfig
 
@@ -134,11 +141,12 @@ func LoadConfig() {
 	cfg.RancherServerURL = getEnv("RANCHER_SERVER")
 	cfg.RancherAccessKey = getEnv("RANCHER_ACCESS_KEY")
 	cfg.RancherSecretKey = getEnv("RANCHER_SECRET_KEY")
-	cfg.KubeconfigFile = getEnv("KUBECONFIG")
 	cfg.KubeconfigDir = getEnv("KUBECONFIG_DIR")
 	cfg.KubeconfigPrefix = getEnv("KUBECONFIG_PREFIX")
 	cfg.Namespace = getEnv("NAMESPACE")
 	cfg.Debug = getEnvBool("DEBUG", false)
+
+	fmt.Println("kubeconfig file: ", cfg.KubeconfigFile)
 }
 
 // GetConfig returns the current configuration instance
