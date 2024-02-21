@@ -21,7 +21,7 @@ func VerifyNamespace(cfg *config.Config, clusterID, namespace string) error {
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{
-		Timeout: time.Second * 10, // 10 seconds timeout
+		Timeout: 10 * time.Second, // More idiomatic timeout setup
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -29,12 +29,13 @@ func VerifyNamespace(cfg *config.Config, clusterID, namespace string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("failed to find namespace %s", namespace)
-	} else if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to verify namespace %s. Status code: %d", namespace, resp.StatusCode)
+	switch resp.StatusCode {
+	case http.StatusOK:
+		fmt.Printf("Successfully found namespace %s in cluster %s.\n", namespace, clusterID)
+		return nil
+	case http.StatusNotFound:
+		return fmt.Errorf("namespace %s not found in cluster %s", namespace, clusterID)
+	default:
+		return fmt.Errorf("unexpected status code %d while verifying namespace %s in cluster %s", resp.StatusCode, namespace, clusterID)
 	}
-
-	fmt.Printf("Successfully found namespace %s\n", namespace)
-	return nil
 }

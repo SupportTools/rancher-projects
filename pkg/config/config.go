@@ -3,7 +3,6 @@ package config
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 )
@@ -73,8 +72,11 @@ func checkMissingSettings() {
 		"rancher-secret-key",
 	}
 
-	requiredFlagCombos := [][]string{
-		{"get-clusters-by-label", "get-clusters-by-type"},
+	var requiredFlagCombos [][]string
+	if cfg.ClusterName == "" {
+		requiredFlagCombos = [][]string{
+			{"get-clusters-by-label", "get-clusters-by-type"},
+		}
 	}
 
 	missingRequiredFlags := []string{}
@@ -91,10 +93,13 @@ func checkMissingSettings() {
 		}
 	}
 
-	for _, flagCombo := range requiredFlagCombos {
-		if (!flagSet[flagCombo[0]] && !flagSet[flagCombo[1]]) ||
-			(flagSet[flagCombo[0]] && flagSet[flagCombo[1]]) {
-			missingRequiredFlagCombos = append(missingRequiredFlagCombos, flagCombo)
+	// Check for missing flag combinations only if required
+	if len(requiredFlagCombos) > 0 {
+		for _, flagCombo := range requiredFlagCombos {
+			if (!flagSet[flagCombo[0]] && !flagSet[flagCombo[1]]) ||
+				(flagSet[flagCombo[0]] && flagSet[flagCombo[1]]) {
+				missingRequiredFlagCombos = append(missingRequiredFlagCombos, flagCombo)
+			}
 		}
 	}
 
@@ -109,7 +114,7 @@ func checkMissingSettings() {
 		if len(missingRequiredFlagCombos) > 0 {
 			fmt.Println("\nFlag combinations:")
 			for _, flagCombo := range missingRequiredFlagCombos {
-				fmt.Printf("- Either %s and %s\n", "--"+flagCombo[0], "--"+flagCombo[1])
+				fmt.Printf("- Either %s or %s\n", "--"+flagCombo[0], "--"+flagCombo[1])
 			}
 		}
 		fmt.Println("\nPlease provide the missing flags.")
@@ -149,7 +154,6 @@ func getEnv(key string) string {
 		if flag.Lookup(key) != nil {
 			return flag.Lookup(key).DefValue
 		}
-		log.Fatalf("Environment variable %s is not set\n", key)
 	}
 	return value
 }
