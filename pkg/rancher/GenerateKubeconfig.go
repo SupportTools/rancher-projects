@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/supporttools/rancher-projects/pkg/config"
@@ -17,7 +18,7 @@ func GenerateKubeconfig(cfg *config.Config, kubeconfigFile, clusterID string) er
 
 	// Construct the request URL for generating kubeconfig.
 	url := fmt.Sprintf("%s/v3/clusters/%s?action=generateKubeconfig", cfg.RancherServerURL, clusterID)
-	req, err := http.NewRequest("POST", url, http.NoBody) // Updated to use http.NoBody
+	req, err := http.NewRequest("POST", url, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -51,9 +52,20 @@ func GenerateKubeconfig(cfg *config.Config, kubeconfigFile, clusterID string) er
 		return fmt.Errorf("failed to decode JSON response: %w", err)
 	}
 
+	// Create the directory for the kubeconfig file if it doesn't exist.
+	if err := os.MkdirAll(filepath.Dir(kubeconfigFile), 0o755); err != nil {
+		return fmt.Errorf("failed to create kubeconfig directory: %w", err)
+	}
+
+	// Create the kubeconfig file if it doesn't exist.
+	if _, err := os.Stat(kubeconfigFile); os.IsNotExist(err) {
+		if _, err := os.Create(kubeconfigFile); err != nil {
+			return fmt.Errorf("failed to create kubeconfig file: %w", err)
+		}
+	}
+
 	// Write the kubeconfig data to the specified file.
-	if err := os.WriteFile(kubeconfigFile, []byte(data.Config), 0o644); // Use new octal literal style
-	err != nil {
+	if err := os.WriteFile(kubeconfigFile, []byte(data.Config), 0o644); err != nil {
 		return fmt.Errorf("failed to write kubeconfig file: %w", err)
 	}
 
