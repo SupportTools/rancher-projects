@@ -1,0 +1,54 @@
+name: "Rancher Projects Action"
+description: "An action to create projects and namespaces in Rancher and assign a namespace to a project in Rancher"
+author: "Matthew Mattox"
+inputs:
+  rancher-server:
+    description: "The Rancher Server URL"
+    required: true
+  rancher-access-key:
+    description: "The Rancher Access Key"
+    required: true
+  rancher-secret-key:
+    description: "The Rancher Secret Key"
+    required: true
+  cluster-name:
+    description: "The name of the cluster"
+    required: true
+  project-name:
+    description: "The name of the project"
+    required: true
+  namespace:
+    description: "The name of the namespace"
+    required: true
+  create-project:
+    description: "Whether to create the project"
+    required: false
+    default: "false"
+  create-namespace:
+    description: "Whether to create the namespace"
+    required: false
+    default: "false"
+  create-kubeconfig:
+    description: "Whether to create a kubeconfig file"
+    required: false
+    default: "false"
+  kubeconfig:
+    description: "Path to the kubeconfig file"
+    required: false
+    default: "rancher-projects-kubeconfig"
+runs:
+  using: "composite"
+  steps:
+    - run: ./entrypoint.sh
+      shell: bash
+      with:
+        rancher-server: ${{ inputs.rancher-server }}
+        rancher-access-key: ${{ inputs.rancher-access-key }}
+        rancher-secret-key: ${{ inputs.rancher-secret-key }}
+        cluster-name: ${{ inputs.cluster-name }}
+        project-name: ${{ inputs.project-name }}
+        namespace: ${{ inputs.namespace }}
+        create-project: ${{ inputs.create-project }}
+        create-namespace: ${{ inputs.create-namespace }}
+        create-kubeconfig: ${{ inputs.create-kubeconfig }}
+        kubeconfig: ${{ inputs.kubeconfig }}

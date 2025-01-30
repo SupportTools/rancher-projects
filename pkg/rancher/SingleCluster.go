@@ -2,35 +2,35 @@ package rancher
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/supporttools/rancher-projects/pkg/config"
 )
 
 // SingleCluster processes a single cluster by verifying it, handling projects within it, and optionally generating a kubeconfig.
 func SingleCluster(cfg *config.Config) error {
+	logger.Info("Processing single cluster...")
 
-	fmt.Println("Processing single cluster...")
-
-	fmt.Println("Verifying cluster...")
+	logger.Info("Verifying cluster...")
 	if err := VerifyCluster(cfg); err != nil {
-		log.Printf("Error verifying cluster: %v\n", err)
+		logger.Error(fmt.Sprintf("Error verifying cluster: %v", err))
 		return fmt.Errorf("error verifying cluster: %v", err)
 	}
 
-	fmt.Println("Getting cluster ID...")
+	logger.Info("Retrieving cluster ID...")
 	clusterID, err := GetClusterID(cfg)
 	if err != nil {
-		log.Printf("Error getting cluster ID: %v\n", err)
+		logger.Error(fmt.Sprintf("Error getting cluster ID: %v", err))
 		return fmt.Errorf("error getting cluster ID: %v", err)
 	}
 
 	if cfg.ProjectName != "" {
+		logger.Info(fmt.Sprintf("Processing project '%s' in cluster '%s'...", cfg.ProjectName, clusterID))
 		if err := MainProject(cfg, clusterID); err != nil {
-			log.Printf("Error handling project '%s': %v\n", cfg.ProjectName, err)
+			logger.Error(fmt.Sprintf("Error handling project '%s': %v", cfg.ProjectName, err))
 			return fmt.Errorf("error handling project '%s': %v", cfg.ProjectName, err)
 		}
 	}
 
+	logger.Info("Single cluster processing completed successfully.")
 	return nil
 }

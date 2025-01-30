@@ -38,41 +38,52 @@ var (
 	currentConfig = &Config{}
 )
 
-func Init() {
-	flag.BoolVar(&currentConfig.ShowHelp, "h", false, "Show help message")
-	flag.StringVar(&currentConfig.ClusterName, "cluster-name", "", "The name of the cluster")
-	flag.BoolVar(&currentConfig.CreateKubeconfig, "create-kubeconfig", false, "Generate Kubeconfig")
-	flag.BoolVar(&currentConfig.CreateNamespace, "create-namespace", false, "Create a namespace")
-	flag.BoolVar(&currentConfig.CreateProject, "create-project", false, "Create a project")
-	flag.BoolVar(&currentConfig.FilterClustersByType, "get-clusters-by-type", false, "Get clusters by type")
-	flag.BoolVar(&currentConfig.FilterClustersByLabel, "get-clusters-by-label", false, "Get clusters by label")
-	flag.StringVar(&currentConfig.KubeconfigFile, "kubeconfig", "", "Kubeconfig file")
-	flag.StringVar(&currentConfig.KubeconfigDir, "kubeconfig-dir", "", "Kubeconfig directory")
-	flag.StringVar(&currentConfig.Namespace, "namespace", "", "Namespace")
-	flag.StringVar(&currentConfig.ProjectName, "project-name", "", "Project name")
-	flag.StringVar(&currentConfig.RancherAccessKey, "rancher-access-key", "", "Rancher access key")
-	flag.StringVar(&currentConfig.RancherSecretKey, "rancher-secret-key", "", "Rancher secret key")
-	flag.StringVar(&currentConfig.RancherServerURL, "rancher-server", "", "Rancher server URL")
+func Init() *Config {
+	config := &Config{}
+
+	flag.BoolVar(&config.ShowHelp, "h", false, "Show help message")
+	flag.StringVar(&config.ClusterName, "cluster-name", "", "The name of the cluster")
+	flag.BoolVar(&config.CreateKubeconfig, "create-kubeconfig", false, "Generate Kubeconfig")
+	flag.BoolVar(&config.CreateNamespace, "create-namespace", false, "Create a namespace")
+	flag.BoolVar(&config.CreateProject, "create-project", false, "Create a project")
+	flag.BoolVar(&config.FilterClustersByType, "get-clusters-by-type", false, "Get clusters by type")
+	flag.BoolVar(&config.FilterClustersByLabel, "get-clusters-by-label", false, "Get clusters by label")
+	flag.StringVar(&config.KubeconfigFile, "kubeconfig", "", "Kubeconfig file")
+	flag.StringVar(&config.KubeconfigDir, "kubeconfig-dir", "", "Kubeconfig directory")
+	flag.StringVar(&config.Namespace, "namespace", "", "Namespace")
+	flag.StringVar(&config.ProjectName, "project-name", "", "Project name")
+	flag.StringVar(&config.RancherAccessKey, "rancher-access-key", "", "Rancher access key")
+	flag.StringVar(&config.RancherSecretKey, "rancher-secret-key", "", "Rancher secret key")
+	flag.StringVar(&config.RancherServerURL, "rancher-server", "", "Rancher server URL")
+	flag.BoolVar(&config.Debug, "debug", false, "Enable debug mode")
 	flag.Parse()
 
-	// Check if create-kubeconfig flag is true, then set KubeconfigFile
-	if currentConfig.CreateKubeconfig {
-		if currentConfig.KubeconfigFile == "" {
-			currentConfig.KubeconfigFile = "rancher-projects-kubeconfig"
-		}
-	}
-
-	// Initialize the cfg variable with command line flag values
-	cfg = *currentConfig
-
 	// Load additional configuration from environment variables
-	LoadConfig()
+	config.LoadConfig()
 
-	// Check for missing required settings
-	checkMissingSettings()
+	// Check for missing required settings (Fix: pass the config instance)
+	checkMissingSettings(config)
+
+	return config
 }
 
-func checkMissingSettings() {
+func (c *Config) LoadConfig() {
+	c.ClusterType = getEnvOrDefault("CLUSTER_TYPE", c.ClusterType)
+	c.ClusterLabels = getEnvOrDefault("CLUSTER_LABELS", c.ClusterLabels)
+	c.ClusterStatus = getEnvOrDefault("CLUSTER_STATUS", c.ClusterStatus)
+	c.ClusterID = getEnvOrDefault("CLUSTER_ID", c.ClusterID)
+	c.ClusterIDs = getEnvArray("CLUSTER_IDS", ",")
+	c.ProjectName = getEnvOrDefault("PROJECT_NAME", c.ProjectName)
+	c.RancherServerURL = getEnvOrDefault("RANCHER_SERVER", c.RancherServerURL)
+	c.RancherAccessKey = getEnvOrDefault("RANCHER_ACCESS_KEY", c.RancherAccessKey)
+	c.RancherSecretKey = getEnvOrDefault("RANCHER_SECRET_KEY", c.RancherSecretKey)
+	c.KubeconfigDir = getEnvOrDefault("KUBECONFIG_DIR", c.KubeconfigDir)
+	c.KubeconfigPrefix = getEnvOrDefault("KUBECONFIG_PREFIX", c.KubeconfigPrefix)
+	c.Namespace = getEnvOrDefault("NAMESPACE", c.Namespace)
+	c.Debug = getEnvBool("DEBUG", c.Debug)
+}
+
+func checkMissingSettings(cfg *Config) {
 	requiredFlags := []string{
 		"rancher-server",
 		"rancher-access-key",
@@ -145,8 +156,6 @@ func LoadConfig() {
 	cfg.KubeconfigPrefix = getEnv("KUBECONFIG_PREFIX")
 	cfg.Namespace = getEnv("NAMESPACE")
 	cfg.Debug = getEnvBool("DEBUG", false)
-
-	fmt.Println("kubeconfig file: ", cfg.KubeconfigFile)
 }
 
 // GetConfig returns the current configuration instance
@@ -182,6 +191,13 @@ func getEnvArray(key, separator string) []string {
 		return []string{}
 	}
 	return strings.Split(value, separator)
+}
+
+func getEnvOrDefault(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
 }
 
 func PrintHelp() {

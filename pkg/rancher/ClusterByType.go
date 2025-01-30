@@ -8,19 +8,19 @@ import (
 
 // ClusterByType performs actions based on the type of the specified cluster.
 func ClusterByType(clusterName string, cfg *config.Config) {
-	fmt.Printf("Handling cluster %s by type...\n", clusterName)
+	logger.Info(fmt.Sprintf("Handling cluster %s by type...", clusterName))
 
 	// Assuming GetClusterType has been refactored to return an error.
 	clusterType, err := GetClusterType(cfg, clusterName)
 	if err != nil {
-		fmt.Printf("Failed to retrieve cluster type for %s: %v\n", clusterName, err)
+		logger.Error(fmt.Sprintf("Failed to retrieve cluster type for %s: %v", clusterName, err))
 		return // Early return on error.
 	}
 
 	if clusterType != "" {
-		fmt.Printf("Cluster type: %s\n", clusterType)
-		fmt.Println("Performing actions based on cluster type...")
+		logger.Info(fmt.Sprintf("Cluster type: %s", clusterType))
+		logger.Info("Performing actions based on cluster type...")
 	} else {
-		fmt.Printf("Cluster type for %s is undefined or empty\n", clusterName)
+		logger.Warn(fmt.Sprintf("Cluster type for %s is undefined or empty", clusterName))
 	}
 }

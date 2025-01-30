@@ -1,6 +1,14 @@
 package rancher
 
-import "time"
+import (
+	"time"
+
+	"github.com/supporttools/rancher-projects/pkg/logging"
+)
+
+var (
+	logger = logging.SetupLogging()
+)
 
 type RancherResponse struct {
 	Type         string      `json:"type"`

@@ -12,11 +12,14 @@ import (
 
 // VerifyCluster checks if a specified cluster exists within Rancher.
 func VerifyCluster(cfg *config.Config) error {
-	fmt.Printf("Verifying cluster %s...\n", cfg.ClusterName)
+	logger.Info(fmt.Sprintf("Verifying cluster %s...", cfg.ClusterName))
 
 	url := fmt.Sprintf("%s/v3/clusters?name=%s", cfg.RancherServerURL, cfg.ClusterName)
+	logger.Debug(fmt.Sprintf("Generated request URL: %s", url))
+
 	req, err := http.NewRequest("GET", url, http.NoBody)
 	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to create HTTP request: %v", err))
 		return fmt.Errorf("failed to create HTTP request: %v", err)
 	}
 
@@ -27,8 +30,11 @@ func VerifyCluster(cfg *config.Config) error {
 	client := &http.Client{
 		Timeout: time.Second * 10, // 10 seconds timeout
 	}
+
+	logger.Info(fmt.Sprintf("Sending GET request to verify cluster %s...", cfg.ClusterName))
 	resp, err := client.Do(req)
 	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to send HTTP request: %v", err))
 		return fmt.Errorf("failed to send HTTP request: %v", err)
 	}
 	defer resp.Body.Close()
@@ -38,12 +44,13 @@ func VerifyCluster(cfg *config.Config) error {
 			Message string `json:"message"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&responseBody); err == nil {
-			// Use responseBody.Message for a more detailed error message if available
+			logger.Error(fmt.Sprintf("Failed to find cluster %s: %s", cfg.ClusterName, responseBody.Message))
 			return fmt.Errorf("failed to find cluster %s: %s", cfg.ClusterName, responseBody.Message)
 		}
+		logger.Error(fmt.Sprintf("Failed to find cluster %s, status code: %d", cfg.ClusterName, resp.StatusCode))
 		return fmt.Errorf("failed to find cluster %s, status code: %d", cfg.ClusterName, resp.StatusCode)
 	}
 
-	fmt.Printf("Successfully found cluster %s\n", cfg.ClusterName)
+	logger.Info(fmt.Sprintf("Successfully found cluster %s", cfg.ClusterName))
 	return nil
 }
