@@ -1,5 +1,5 @@
 # Use golang alpine image as the builder stage
-FROM golang:1.23.5-alpine AS builder
+FROM harbor.support.tools/dockerhub/library/golang:1.23.5-alpine AS builder
 
 # Install git and other necessary tools
 RUN apk update && apk add --no-cache git bash
@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     -o /rancher-projects
 
 # Use a minimal base image
-FROM alpine:3.18
+FROM harbor.support.tools/dockerhub/library/alpine:3.18
 
 # Install ca-certificates and other necessary tools
 RUN apk add --no-cache ca-certificates bash curl

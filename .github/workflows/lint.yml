@@ -24,11 +24,12 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
-          check-latest: true
+          # Lint with the Go version go.mod declares. golangci-lint "latest" under action v4 resolved to an
+          # old v1 build that cannot read export data from Go "stable" (cluster-services-1483).
+          go-version-file: go.mod
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v4.0.0
+        uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          version: v1.64.8
           args: --timeout 5m
