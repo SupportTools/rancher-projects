@@ -31,8 +31,10 @@ COPY . .
 ARG VERSION
 ARG GIT_COMMIT
 ARG BUILD_DATE
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+# No defaults: a default here overrides the platform value BuildKit sets, and the arm64 image
+# then carried an amd64 binary (main 42b5f92d).
+ARG TARGETOS
+ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags "-s -w \
     -X github.com/supporttools/rancher-projects/pkg/version.Version=${VERSION} \
