@@ -111,4 +111,8 @@ jobs:
             id=$(docker create --platform "$p" "$ref")
             docker export "$id" | tar -x -C "$d"; docker rm "$id" >/dev/null
             sh noemsign-ca.sh guard "$d" | tail -1 | tee -a "$GITHUB_STEP_SUMMARY"
+            # The binary must match the platform (an ARG default once shipped amd64 in the arm64 image).
+            want=$(case "${p##*/}" in amd64) echo x86-64;; arm64) echo aarch64;; esac)
+            file "$d/rancher-projects" | tee -a "$GITHUB_STEP_SUMMARY" | grep -q "$want" \
+              || { echo "::error::$p image does not carry a $want binary"; exit 1; }
           done
