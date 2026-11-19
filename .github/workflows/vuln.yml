@@ -1,6 +1,9 @@
 name: vuln
 
-permissions: {} # no need any permissions
+# Re-enabled (was disabled_inactivity; cluster-services-1489). Not superseded by publish.yaml, which
+# builds the image but does not scan the Go code.
+permissions:
+  contents: read
 
 on:
   push:
@@ -11,26 +14,25 @@ on:
   - cron: '0 10 * * 1' # run "At 10:00 on Monday"
   workflow_call:
 
+env:
+  # govulncheck itself comes through Athens (a cache we run), pinned to a version.
+  GOPROXY: https://goproxy.support.tools
+
 jobs:
   run:
     name: Vuln
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    strategy:
-      fail-fast: true
-
+    timeout-minutes: 10
     steps:
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
-          check-latest: true
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      # Latest stable Go: the findings that matter here are standard-library ones, fixed by the
+      # toolchain the image is built with, not by go.mod.
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
 
       - name: Run govulncheck
-        run: govulncheck -test ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 -test ./...

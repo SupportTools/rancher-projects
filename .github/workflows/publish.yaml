@@ -1,27 +1,43 @@
 name: publish
 
+# Image: harbor.support.tools/rancher-projects/rancher-projects:{latest,<sha>,main} (cluster-services-1489).
+# Docker Hub publishing (supporttools/rancher-projects) stopped here: a consumer search found nothing that
+# pulls the image (go-site-monitor and zerodowntime-website install the v0.2.2 release tarball, kube-builder,
+# harbor and owncloud fetch rancher-projects.sh). The old Docker Hub tags were left in place.
+#
+# Credentials are keyless: GitHub OIDC -> Vault jwt role gha-rancher-projects (bound to this repository,
+# refs/heads/main and this workflow file, so a pull request, a fork or another workflow cannot log in) ->
+# Harbor robot at secret/harbor/rancher-projects-ci-robot (robot$rancher-projects-ci: pull+push on the
+# rancher-projects project only), rotated weekly by cluster-services harbor/ci-cred-rotation.
+#
+# Fetch tiers: BuildKit and the golang base image from the Harbor Docker Hub proxy-cache, pinned by
+# digest; Go modules from Athens; no apk/apt fetch (see Dockerfile).
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+env:
+  IMAGE: harbor.support.tools/rancher-projects/rancher-projects
+  VAULT_ADDR: https://vault.support.tools
+  PLATFORMS: linux/amd64,linux/arm64
+
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write   # GitHub OIDC for the Vault JWT login (main pushes only; PRs never log in)
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          # binfmt from the Harbor Docker Hub proxy-cache (anonymous pull), pinned by tag + index
-          # digest instead of docker.io/tonistiigi/binfmt:latest (cluster-services-1470).
-          image: harbor.support.tools/dockerhub/tonistiigi/binfmt:qemu-v10.2.3-68@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
-          platforms: all
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -29,26 +45,70 @@ jobs:
           # BuildKit from the Harbor Docker Hub proxy, pinned by index digest (cluster-services-1487)
           driver-opts: image=harbor.support.tools/dockerhub/moby/buildkit:v0.34.1@sha256:99368f3e46177c6405b9740e4461d91cee004128daeecca78d4ceac50ec1da5c
 
-      # Pull requests build only: no login, no push. The old run tagged the image with
-      # github.ref_name, which is "20/merge" on a PR and is not a valid tag (cluster-services-1483).
-      - name: Log in to Docker Hub
+      - name: Build metadata
+        id: meta
+        run: |
+          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "version=$(git describe --tags --always)" >> "$GITHUB_OUTPUT"
+
+      # Pull requests: build every platform, push nothing, then guard the amd64 filesystem.
+      - name: Build (pull request, no push)
+        if: github.event_name == 'pull_request'
+        run: |
+          docker buildx build --platform "$PLATFORMS" \
+            --build-arg VERSION=${{ steps.meta.outputs.version }} \
+            --build-arg GIT_COMMIT=${{ github.sha }} \
+            --build-arg BUILD_DATE=${{ steps.meta.outputs.date }} .
+          docker buildx build --platform linux/amd64 --load -t rancher-projects:pr .
+          docker run --rm rancher-projects:pr --help
+          id=$(docker create --platform linux/amd64 rancher-projects:pr)
+          mkdir -p "$RUNNER_TEMP/rootfs-amd64" && docker export "$id" | tar -x -C "$RUNNER_TEMP/rootfs-amd64" && docker rm "$id" >/dev/null
+          sh noemsign-ca.sh guard "$RUNNER_TEMP/rootfs-amd64"
+
+      - name: Harbor robot from Vault (keyless)
+        if: github.event_name == 'push'
+        uses: hashicorp/vault-action@v3
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          method: jwt
+          path: github-actions
+          role: gha-rancher-projects
+          jwtGithubAudience: https://github.com/SupportTools
+          secrets: |
+            secret/data/harbor/rancher-projects-ci-robot username | HARBOR_ROBOT_USER ;
+            secret/data/harbor/rancher-projects-ci-robot password | HARBOR_ROBOT_TOKEN
+
+      - name: Log in to Harbor
         if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: harbor.support.tools
+          username: ${{ env.HARBOR_ROBOT_USER }}
+          password: ${{ env.HARBOR_ROBOT_TOKEN }}
 
-      - name: Build and push Docker image (main)
+      - name: Build and push (main)
+        if: github.event_name == 'push'
+        id: push
+        run: |
+          docker buildx build --platform "$PLATFORMS" \
+            --build-arg VERSION=${{ steps.meta.outputs.version }} \
+            --build-arg GIT_COMMIT=${{ github.sha }} \
+            --build-arg BUILD_DATE=${{ steps.meta.outputs.date }} \
+            -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:main" \
+            --metadata-file "$RUNNER_TEMP/meta.json" --push .
+          digest=$(jq -r '."containerimage.digest"' "$RUNNER_TEMP/meta.json")
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "pushed $IMAGE:${{ github.sha }}@$digest" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Re-pull the pushed digest per platform and run the noemsign guard over its whole filesystem.
+      - name: Guard the pushed digest
         if: github.event_name == 'push'
         run: |
-          docker buildx build --platform linux/amd64,linux/arm64 \
-            -t supporttools/rancher-projects:latest \
-            -t supporttools/rancher-projects:${{ github.sha }} \
-            -t supporttools/rancher-projects:${{ github.ref_name }} \
-            --push .
-
-      - name: Build Docker image (pull request, no push)
-        if: github.event_name == 'pull_request'
-        run: |
-          docker buildx build --platform linux/amd64,linux/arm64 \
-            -t rancher-projects:pr-${{ github.event.pull_request.number }} .
+          ref="$IMAGE@${{ steps.push.outputs.digest }}"
+          for p in ${PLATFORMS//,/ }; do
+            d="$RUNNER_TEMP/rootfs-${p##*/}"; mkdir -p "$d"
+            docker pull -q --platform "$p" "$ref" >/dev/null
+            id=$(docker create --platform "$p" "$ref")
+            docker export "$id" | tar -x -C "$d"; docker rm "$id" >/dev/null
+            sh noemsign-ca.sh guard "$d" | tail -1 | tee -a "$GITHUB_STEP_SUMMARY"
+          done
